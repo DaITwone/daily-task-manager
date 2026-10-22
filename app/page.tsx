@@ -179,6 +179,44 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
   return <svg {...common}>{paths[name] ?? paths.calendar}</svg>;
 }
 
+function TaskStatusToggle({
+  task,
+  busy,
+  isUpdating,
+  compact = false,
+  onToggle,
+}: {
+  task: Task;
+  busy: boolean;
+  isUpdating: boolean;
+  compact?: boolean;
+  onToggle: () => void;
+}) {
+  const isCompleted = task.status === "Hoàn thành";
+  const action = isCompleted ? "Chuyển về chưa hoàn thành" : "Đánh dấu hoàn thành";
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
+      disabled={busy}
+      aria-label={`${action}: ${task.title}`}
+      title={action}
+      className={`shrink-0 rounded-[4px] transition hover:opacity-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-wait ${
+        compact ? "h-3 w-3 rounded-[3px]" : "h-4 w-4"
+      } ${
+        isCompleted
+          ? "bg-[#008061] focus-visible:ring-[#008061]/50"
+          : "bg-[#F47B20] focus-visible:ring-[#F47B20]/50"
+      } ${isUpdating ? "animate-pulse" : ""}`}
+    />
+  );
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -205,6 +243,10 @@ export default function Home() {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
   const [deletingTaskBusy, setDeletingTaskBusy] = useState(false);
+
+  const [updatingTaskStatusId, setUpdatingTaskStatusId] = useState<string | null>(
+    null,
+  );
 
   const [search, setSearch] = useState("");
 
@@ -698,6 +740,61 @@ export default function Home() {
     }
   }
 
+  async function handleToggleTaskStatus(task: Task) {
+    if (task.ownerId !== currentUser?.id || updatingTaskStatusId) return;
+
+    const nextStatus: TaskStatus =
+      task.status === "Hoàn thành" ? "Chưa hoàn thành" : "Hoàn thành";
+    const nextApiStatus: ApiTaskStatus =
+      nextStatus === "Hoàn thành" ? "COMPLETED" : "TODO";
+
+    setUpdatingTaskStatusId(task.id);
+    setTaskError("");
+
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description ?? "",
+          taskDate: task.date,
+          status: nextApiStatus,
+        }),
+      });
+      const data = await response.json();
+
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      if (!response.ok)
+        throw new Error(data.message || "Không thể cập nhật trạng thái.");
+
+      setTasks((current) =>
+        current.map((item) =>
+          item.id === task.id
+            ? {
+                ...item,
+                status: nextStatus,
+                color: nextStatus === "Hoàn thành" ? "green" : "orange",
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setTaskError(
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật trạng thái.",
+      );
+    } finally {
+      setUpdatingTaskStatusId(null);
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#FFF8EC] text-[#263b33]">
       <div
@@ -1065,33 +1162,46 @@ export default function Home() {
                         </button>
 
                         <div className="flex w-full flex-col gap-1">
-                          {dayTasks.slice(0, 3).map((task) =>
-                            task.ownerId === currentUser?.id ? (
-                              <button
-                                key={task.id}
-                                type="button"
-                                title={`Sửa ${task.title}`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  startEditingTask(task);
-                                }}
-                                onDoubleClick={(event) =>
-                                  event.stopPropagation()
-                                }
-                                className={`block w-full truncate rounded-md px-1.5 py-1 text-left text-[9px] font-semibold leading-tight transition-opacity hover:opacity-80 sm:px-2 sm:text-[11px] ${taskTone[task.color]}`}
-                              >
-                                {task.title}
-                              </button>
-                            ) : (
-                              <span
-                                key={task.id}
-                                title={`${task.title} · ${task.owner}`}
-                                className={`block truncate rounded-md px-1.5 py-1 text-left text-[9px] font-medium leading-tight opacity-80 sm:px-2 sm:text-[11px] ${taskTone[task.color]}`}
-                              >
-                                {task.title}
-                              </span>
-                            ),
-                          )}
+                          {dayTasks.slice(0, 3).map((task) => (
+                            <div
+                              key={task.id}
+                              title={`${task.title} · ${task.owner}`}
+                              className={`flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 sm:px-2 ${taskTone[task.color]}`}
+                            >
+                              {task.ownerId === currentUser?.id ? (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    startEditingTask(task);
+                                  }}
+                                  onDoubleClick={(event) =>
+                                    event.stopPropagation()
+                                  }
+                                  className="min-w-0 flex-1 truncate text-left text-[9px] font-semibold leading-tight transition-opacity hover:opacity-80 sm:text-[11px]"
+                                >
+                                  {task.title}
+                                </button>
+                              ) : (
+                                <span
+                                  className="min-w-0 flex-1 truncate text-left text-[9px] font-medium leading-tight opacity-80 sm:text-[11px]"
+                                >
+                                  {task.title}
+                                </span>
+                              )}
+                              {task.ownerId === currentUser?.id && (
+                                <TaskStatusToggle
+                                  task={task}
+                                  busy={updatingTaskStatusId !== null}
+                                  isUpdating={updatingTaskStatusId === task.id}
+                                  compact
+                                  onToggle={() =>
+                                    void handleToggleTaskStatus(task)
+                                  }
+                                />
+                              )}
+                            </div>
+                          ))}
 
                           {dayTasks.length > 3 && (
                             <span className="px-1 text-[10px] font-semibold text-[#78867f]">
@@ -1132,25 +1242,38 @@ export default function Home() {
                       </button>
                       <div className="space-y-1 p-1.5">
                         {tasksForDate(date).map((task) => (
-                          <button
+                          <div
                             key={task.id}
-                            onClick={() => {
-                              setSelectedDate(new Date(date));
-                              if (task.ownerId === currentUser?.id) {
-                                startEditingTask(task);
-                              }
-                            }}
-                            className={`w-full rounded-md px-2 py-1.5 text-left text-[11px] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 ${taskTone[task.color]}`}
-                            title={
-                              task.ownerId === currentUser?.id
-                                ? "Chọn để sửa công việc"
-                                : `${task.title} · ${task.owner}`
-                            }
+                            className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] ${taskTone[task.color]}`}
                           >
-                            <span className="block font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDate(new Date(date));
+                                if (task.ownerId === currentUser?.id) {
+                                  startEditingTask(task);
+                                }
+                              }}
+                              className="min-w-0 flex-1 truncate text-left font-semibold focus-visible:outline-none focus-visible:underline"
+                              title={
+                                task.ownerId === currentUser?.id
+                                  ? "Chọn để sửa công việc"
+                                  : `${task.title} · ${task.owner}`
+                              }
+                            >
                               {task.title}
-                            </span>
-                          </button>
+                            </button>
+                            {task.ownerId === currentUser?.id && (
+                              <TaskStatusToggle
+                                task={task}
+                                busy={updatingTaskStatusId !== null}
+                                isUpdating={updatingTaskStatusId === task.id}
+                                onToggle={() =>
+                                  void handleToggleTaskStatus(task)
+                                }
+                              />
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
