@@ -3,6 +3,8 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "dtm_session";
 
@@ -45,4 +47,30 @@ export async function getCurrentSession() {
   } catch {
     return null;
   }
+}
+
+
+export async function requireUser() {
+  const session = await getCurrentSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: {
+      id: true,
+      employeeId: true,
+      fullName: true,
+      email: true,
+      jobTitle: true,
+    },
+  });
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return user;
 }
