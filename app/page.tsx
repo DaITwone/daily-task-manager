@@ -55,6 +55,16 @@ type Task = {
   color: TaskColor;
 };
 
+type ExportTask = {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string | null;
+  taskDate: string;
+  status: ApiTaskStatus;
+  user: { employeeId: string; fullName: string; jobTitle: string };
+};
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 const isoDate = (date: Date) =>
@@ -75,6 +85,24 @@ const longDate = (date: Date) =>
 
 const shortWeekday = (date: Date) =>
   new Intl.DateTimeFormat("vi-VN", { weekday: "short" }).format(date);
+
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+
+    return entities[character];
+  });
+
+const csvCell = (value: string) => {
+  const safeValue = /^[\s]*[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+};
 
 const taskTone: Record<TaskColor, string> = {
   green: "border-l-[#008061] bg-[#e8f4ef] text-[#006b51]",
@@ -181,20 +209,20 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
       </>
     ),
     user: (
-  <>
-    <circle cx="12" cy="8" r="4" />
-    <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
-  </>
-),
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+      </>
+    ),
 
-users: (
-  <>
-    <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="10" cy="7" r="4" />
-    <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </>
-),
+    users: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="10" cy="7" r="4" />
+        <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </>
+    ),
   };
 
   return <svg {...common}>{paths[name] ?? paths.calendar}</svg>;
@@ -257,6 +285,10 @@ export default function Home() {
 
   const [taskError, setTaskError] = useState("");
 
+  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
+
+  const [exportError, setExportError] = useState("");
+
   const [savingTask, setSavingTask] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -277,7 +309,7 @@ export default function Home() {
     string | null
   >(null);
 
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>("team");
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>("personal");
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
@@ -597,6 +629,253 @@ export default function Home() {
     setShowTeamMembers(true);
     setSidebarOpen(false);
     void loadTeamMembers();
+  }
+
+  async function handleExport(format: "excel" | "pdf") {
+    if (!canManageTasks || !currentUser || exporting) return;
+
+    let printFrame: HTMLIFrameElement | null = null;
+    setExporting(format);
+    setExportError("");
+
+    try {
+      const params = new URLSearchParams({
+        view: "month",
+        date: isoDate(currentDate),
+        scope: "personal",
+      });
+      const response = await fetch(`/api/tasks?${params.toString()}`, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = await response.json();
+
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Không thể tải dữ liệu để xuất.");
+      }
+
+      const monthTasks = (data.tasks as ExportTask[]).filter(
+        (task) => task.userId === currentUser.id,
+      );
+      const monthFileName = `${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}`;
+
+      if (format === "excel") {
+        const rows = [
+          [
+            "Ngày",
+            "Mã nhân viên",
+            "Họ và tên",
+            "Chức vụ",
+            "Tên công việc",
+            "Mô tả",
+            "Trạng thái",
+          ],
+          ...monthTasks.map((task) => [
+            String(task.taskDate).slice(0, 10),
+            task.user.employeeId,
+            task.user.fullName,
+            task.user.jobTitle,
+            task.title,
+            task.description ?? "",
+            task.status === "COMPLETED" ? "Hoàn thành" : "Chưa hoàn thành",
+          ]),
+        ];
+        const csv = `\uFEFF${rows
+          .map((row) => row.map(csvCell).join(","))
+          .join("\r\n")}`;
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `lich-cong-viec-${monthFileName}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+
+      const sortedTasks = [...monthTasks].sort((a, b) =>
+        String(a.taskDate).slice(0, 10).localeCompare(String(b.taskDate).slice(0, 10)) ||
+        a.title.localeCompare(b.title, "vi"),
+      );
+      const completedCount = sortedTasks.filter((task) => task.status === "COMPLETED").length;
+      const unfinishedCount = sortedTasks.length - completedCount;
+      const completionRate = sortedTasks.length
+        ? Math.round((completedCount / sortedTasks.length) * 100)
+        : 0;
+
+      let previousDateKey = "";
+      const taskRows = sortedTasks.map((task) => {
+        const dateKey = String(task.taskDate).slice(0, 10);
+        const taskDate = new Date(`${String(task.taskDate).slice(0, 10)}T12:00:00`);
+        const dateLabel = new Intl.DateTimeFormat("vi-VN", {
+          weekday: "short", day: "2-digit", month: "2-digit",
+        }).format(taskDate);
+        const completed = task.status === "COMPLETED";
+        const showDate = dateKey !== previousDateKey;
+        previousDateKey = dateKey;
+        return `<tr>
+          <td class="date-cell">${showDate ? `<strong>${escapeHtml(dateLabel)}</strong>` : ""}</td>
+          <td class="task-cell"><strong>${escapeHtml(task.title)}</strong></td>
+          <td class="description-cell">${task.description?.trim()
+            ? escapeHtml(task.description).replace(/\n/g, "<br>")
+            : ""}</td>
+          <td class="status-cell"><span class="status ${completed ? "completed" : "pending"}">${completed ? "✓ Hoàn thành" : "Chưa hoàn thành"}</span></td>
+        </tr>`;
+      }).join("");
+
+      const printDate = new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+      }).format(new Date());
+      const monthRange = `${pad(1)}.${pad(currentDate.getMonth() + 1)} - ${pad(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate())}.${pad(currentDate.getMonth() + 1)}`;
+      const printable = `<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>File tổng hợp - ${escapeHtml(monthFileName)}</title>
+<style>
+@page { size: A4 portrait; margin: 12mm 11mm 14mm; }
+* { box-sizing: border-box; }
+:root { color-scheme: light; }
+body { margin: 0; color: #263b33; font-family: "Segoe UI", "Noto Sans", Arial, sans-serif; font-size: 10pt; font-weight: 400; -webkit-font-smoothing: antialiased; }
+.page-header { display:flex; justify-content:space-between; align-items:center; gap:8mm; min-height:19mm; padding:0 0 3mm; border-bottom:1.1mm solid #ed1c24; }
+.brand { display:flex; align-items:center; gap:3mm; min-width:0; }
+.logo { width:20mm; height:20mm; object-fit:contain; }
+.brand-copy { min-width:0; }
+.eyebrow { color:#00843d; font-size:6pt; font-weight:800; letter-spacing:.9pt; text-transform:uppercase; margin-bottom:2mm; }
+h1 { margin:0; color:#f58220; font-size:20pt; line-height:1.05; font-weight:900; letter-spacing:.1pt; }
+.period { margin-top:1mm; color:#ed1c24; font-size:14pt; font-weight:800; letter-spacing:.3pt; }
+.print-date { flex-shrink:0; min-width:20mm; text-align:right; color:#68786d; font-size:6pt; }
+.date-bars { display:flex; justify-content:flex-end; gap:1mm; margin-bottom:1mm; }
+.date-bars span { width:6mm; height:1.5mm; border-radius:.5mm; }
+.date-bars span:nth-child(1) { background:#f58220; }
+.date-bars span:nth-child(2) { background:#00843d; }
+.date-bars span:nth-child(3) { background:#ed1c24; }
+.print-label { color:#68786d; font-size:6pt; font-weight:800; letter-spacing:.5pt; }
+.print-date strong { display:block; margin-top:.5mm; color:#263b30; font-size:8pt; font-weight:800; }
+.intro { display:flex; justify-content:space-between; gap:5mm; padding:4mm 0; }
+.owner { font-size:10pt; font-weight:700; }
+.owner small { display:block; margin-top:1mm; color:#78867f; font-size:8pt; font-weight:400; }
+.summary { display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin:0 0 5mm; }
+.metric { padding:3mm; border:0.3mm solid #e5ebe6; border-radius:2mm; background:#f8fbf9; }
+.metric span { display:block; color:#65766e; font-size:8pt; margin-bottom:1.5mm; }
+.metric strong { font-size:16pt; line-height:1; color:#263b33; }
+.metric.completed strong { color:#008061; }
+.metric.pending strong { color:#b45309; }
+.metric.rate strong { color:#f47b20; }
+.section-title { display:flex; justify-content:space-between; align-items:end; gap:4mm; margin:0 0 2mm; }
+.section-title h2 { margin:0; font-size:11pt; }
+.section-title span { color:#78867f; font-size:8pt; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; }
+thead { display:table-header-group; }
+th { padding:2.7mm 2mm; text-align:left; color:#fff; background:#006b51; font-size:8.5pt; font-weight:700; }
+td { padding:2.7mm 2mm; border-bottom:.25mm solid #e7ece8; vertical-align:top; line-height:1.45; font-size:9pt; font-weight:400; overflow-wrap:anywhere; }
+tbody tr:nth-child(even) { background:#f8fbf9; }
+.date-cell { width:19%; color:#008061; white-space:nowrap; font-weight:700; }
+.task-cell { width:29%; font-weight:500; }
+.description-cell { width:34%; color:#52615b; }
+.status-cell { width:18%; }
+.status { display:inline-block; padding:1.3mm 1.7mm; border-radius:1.5mm; font-size:7.5pt; font-weight:600; white-space:normal; }
+.status.completed { color:#006b51; background:#e8f4ef; }
+.status.pending { color:#a34a00; background:#fff1df; }
+.muted { color:#a0a9a3; font-style:italic; }
+.empty { padding:12mm 5mm; text-align:center; color:#78867f; border:0.3mm dashed #d8e1da; border-radius:2mm; }
+.footer { margin-top:5mm; padding-top:2mm; border-top:.3mm solid #e5ebe6; display:flex; justify-content:space-between; color:#89948e; font-size:7.5pt; }
+@media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } tr { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <div class="brand">
+    <img class="logo" src="${escapeHtml(window.location.origin)}/images/logo.png" alt="ELEVEN">
+    <div class="brand-copy">
+      <div class="eyebrow">CỬA HÀNG TIỆN LỢI 24/7</div>
+      <h1>TỔNG HỢP CÔNG VIỆC</h1>
+      <div class="period">${monthRange}</div>
+    </div>
+  </div>
+  <div class="print-date">
+    <div class="date-bars"><span></span><span></span><span></span></div>
+    <div class="print-label">NGÀY IN</div>
+    <strong>${printDate}</strong>
+  </div>
+</header>
+<div class="intro">
+  <div class="owner">${escapeHtml(currentUser.employeeId)} - ${escapeHtml(currentUser.fullName)} - ${escapeHtml(currentUser.jobTitle)}
+  </div>
+  <div style="text-align:right;color:#78867f;font-size:8pt">Báo cáo công việc cá nhân<br><strong style="color:#263b33">${escapeHtml(monthLabel(currentDate))}</strong></div>
+</div>
+<section class="summary">
+  <div class="metric"><span>TỔNG CÔNG VIỆC</span><strong>${sortedTasks.length}</strong></div>
+  <div class="metric completed"><span>ĐÃ HOÀN THÀNH</span><strong>${completedCount}</strong></div>
+  <div class="metric pending"><span>CHƯA HOÀN THÀNH</span><strong>${unfinishedCount}</strong></div>
+  <div class="metric rate"><span>TỶ LỆ HOÀN THÀNH</span><strong>${completionRate}%</strong></div>
+</section>
+<section>
+  <div class="section-title"><h2>Chi tiết công việc</h2><span>${sortedTasks.length} nhiệm vụ · Sắp xếp theo ngày</span></div>
+  ${sortedTasks.length ? `<table>
+    <thead><tr><th style="width:19%">Ngày</th><th style="width:29%">Tên công việc</th><th style="width:34%">Mô tả</th><th style="width:18%">Trạng thái</th></tr></thead>
+    <tbody>${taskRows}</tbody>
+  </table>` : '<p class="empty">Tháng này chưa có công việc nào được ghi nhận.</p>'}
+</section>
+<footer class="footer"><span>DAILY TASK · FILE TỔNG HỢP</span><span>Dữ liệu được tổng hợp từ lịch công việc tháng</span></footer>
+</body>
+</html>`;
+      printFrame = document.createElement("iframe");
+      printFrame.title = "Bản in lịch công việc";
+      printFrame.setAttribute("aria-hidden", "true");
+      printFrame.style.position = "fixed";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "0";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      document.body.appendChild(printFrame);
+
+      const frameWindow = printFrame.contentWindow;
+      const frameDocument = printFrame.contentDocument;
+      if (!frameWindow || !frameDocument) {
+        throw new Error("Không thể chuẩn bị bản in PDF.");
+      }
+
+      frameWindow.addEventListener(
+        "afterprint",
+        () => {
+          printFrame?.remove();
+          printFrame = null;
+        },
+        { once: true },
+      );
+      frameDocument.open();
+      frameDocument.write(printable);
+      frameDocument.close();
+      const logo = frameDocument.querySelector<HTMLImageElement>(".logo");
+      const startPrint = () =>
+        window.setTimeout(() => {
+          frameWindow.focus();
+          frameWindow.print();
+        }, 250);
+      if (logo && !logo.complete) {
+        logo.addEventListener("load", startPrint, { once: true });
+        logo.addEventListener("error", startPrint, { once: true });
+      } else {
+        startPrint();
+      }
+    } catch (error) {
+      printFrame?.remove();
+      printFrame = null;
+      setExportError(
+        error instanceof Error ? error.message : "Không thể xuất dữ liệu.",
+      );
+    } finally {
+      setExporting(null);
+    }
   }
 
   async function handleLogout() {
@@ -1023,43 +1302,43 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-[#f0e4d2] pt-5">
-  <p className="mb-3 px-2 text-xs font-semibold text-[#78867f]">
-    Lịch của bạn
-  </p>
+            <p className="mb-3 px-2 text-xs font-semibold text-[#78867f]">
+              Lịch của bạn
+            </p>
 
-  <button
-    type="button"
-    title="Lịch cá nhân"
-    onClick={() => {
-      setCalendarMode("personal");
-      if (currentUser) setCalendarUserFilterId(currentUser.id);
-      setShowTeamMembers(false);
-      setSidebarOpen(false);
-    }}
-    className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm transition ${
-      calendarMode === "personal"
-        ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
-        : "text-[#263b33] hover:bg-[#f4eadb]"
-    }`}
-  >
-    <Icon name="user" size={17} />
-    <span>Lịch của tôi</span>
-  </button>
+            <button
+              type="button"
+              title="Lịch cá nhân"
+              onClick={() => {
+                setCalendarMode("personal");
+                if (currentUser) setCalendarUserFilterId(currentUser.id);
+                setShowTeamMembers(false);
+                setSidebarOpen(false);
+              }}
+              className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm transition ${
+                calendarMode === "personal"
+                  ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
+                  : "text-[#263b33] hover:bg-[#f4eadb]"
+              }`}
+            >
+              <Icon name="user" size={17} />
+              <span>Lịch của tôi</span>
+            </button>
 
-  <button
-    type="button"
-    title="Lịch nhóm"
-    onClick={toggleTeamMemberPicker}
-    className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm transition ${
-      calendarMode === "team"
-        ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
-        : "text-[#263b33] hover:bg-[#f4eadb]"
-    }`}
-  >
-    <Icon name="users" size={17} />
-    <span className="flex-1">Lịch nhóm</span>
-  </button>
-</div>
+            <button
+              type="button"
+              title="Lịch nhóm"
+              onClick={toggleTeamMemberPicker}
+              className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm transition ${
+                calendarMode === "team"
+                  ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
+                  : "text-[#263b33] hover:bg-[#f4eadb]"
+              }`}
+            >
+              <Icon name="users" size={17} />
+              <span className="flex-1">Lịch nhóm</span>
+            </button>
+          </div>
           <div className="mt-auto border-t border-[#f0e4d2] pt-4">
             <div className="flex items-center gap-3 px-2">
               <span
@@ -1166,27 +1445,30 @@ export default function Home() {
                 </button>
               ))}
             </div>
-
-            <button
-              title="Tìm kiếm"
-              className="rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb]"
-            >
-              <Icon name="search" />
-            </button>
-
-            <button
-              title="Cài đặt"
-              className="hidden rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb] sm:block"
-            >
-              <Icon name="settings" />
-            </button>
-
-            <span
-              title={currentUser?.fullName ?? "Tài khoản"}
-              className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-semibold text-white"
-            >
-              {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
-            </span>
+            {canManageTasks && currentUser && (
+              <div className="hidden items-center gap-2 sm:flex">
+                <button
+                  type="button"
+                  onClick={() => void handleExport("excel")}
+                  disabled={exporting !== null}
+                  title="Xuất Excel tháng này"
+                  aria-label="Xuất Excel tháng này"
+                  className="rounded-xl border border-[#d7e9df] bg-white/80 px-3 py-2 text-xs font-semibold text-[#006b51] shadow-sm transition hover:bg-[#e8f4ef] disabled:cursor-wait disabled:opacity-50"
+                >
+                  {exporting === "excel" ? "Đang xuất…" : "Excel"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleExport("pdf")}
+                  disabled={exporting !== null}
+                  title="Xuất PDF tháng này"
+                  aria-label="Xuất PDF tháng này"
+                  className="rounded-xl border border-[#d7e9df] bg-white/80 px-3 py-2 text-xs font-semibold text-[#006b51] shadow-sm transition hover:bg-[#e8f4ef] disabled:cursor-wait disabled:opacity-50"
+                >
+                  {exporting === "pdf" ? "Đang xuất…" : "PDF"}
+                </button>
+              </div>
+            )}
           </header>
 
           <div className="border-b border-[#f0e4d2] px-3 py-3 sm:hidden">
@@ -1211,6 +1493,28 @@ export default function Home() {
                 <option value="month">Tháng</option>
               </select>
             </div>
+            {canManageTasks && currentUser && (
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleExport("excel")}
+                  disabled={exporting !== null}
+                  aria-label="Xuất Excel tháng này"
+                  className="rounded-xl border border-[#d7e9df] bg-white px-3 py-2 text-xs font-semibold text-[#006b51] disabled:opacity-50"
+                >
+                  {exporting === "excel" ? "Đang xuất…" : "Excel"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleExport("pdf")}
+                  disabled={exporting !== null}
+                  aria-label="Xuất PDF tháng này"
+                  className="rounded-xl bg-[#008061] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  {exporting === "pdf" ? "Đang xuất…" : "PDF"}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="px-2 pb-5 pt-2 sm:px-4 sm:pt-4">
@@ -1234,6 +1538,15 @@ export default function Home() {
                 className="mb-3 rounded-2xl border border-[#f2c6bd] bg-[#fff0ed] px-4 py-3 text-sm text-[#b4231e]"
               >
                 {taskError}
+              </div>
+            )}
+
+            {exportError && (
+              <div
+                role="alert"
+                className="mb-3 rounded-2xl border border-[#f2c6bd] bg-[#fff0ed] px-4 py-3 text-sm text-[#b4231e]"
+              >
+                {exportError}
               </div>
             )}
 
@@ -1325,16 +1638,18 @@ export default function Home() {
                               )}
                               {canManageTasks &&
                                 task.ownerId === currentUser?.id && (
-                                <TaskStatusToggle
-                                  task={task}
-                                  busy={updatingTaskStatusId !== null}
-                                  isUpdating={updatingTaskStatusId === task.id}
-                                  compact
-                                  onToggle={() =>
-                                    void handleToggleTaskStatus(task)
-                                  }
-                                />
-                              )}
+                                  <TaskStatusToggle
+                                    task={task}
+                                    busy={updatingTaskStatusId !== null}
+                                    isUpdating={
+                                      updatingTaskStatusId === task.id
+                                    }
+                                    compact
+                                    onToggle={() =>
+                                      void handleToggleTaskStatus(task)
+                                    }
+                                  />
+                                )}
                             </div>
                           ))}
 
@@ -1410,15 +1725,15 @@ export default function Home() {
                             </button>
                             {canManageTasks &&
                               task.ownerId === currentUser?.id && (
-                              <TaskStatusToggle
-                                task={task}
-                                busy={updatingTaskStatusId !== null}
-                                isUpdating={updatingTaskStatusId === task.id}
-                                onToggle={() =>
-                                  void handleToggleTaskStatus(task)
-                                }
-                              />
-                            )}
+                                <TaskStatusToggle
+                                  task={task}
+                                  busy={updatingTaskStatusId !== null}
+                                  isUpdating={updatingTaskStatusId === task.id}
+                                  onToggle={() =>
+                                    void handleToggleTaskStatus(task)
+                                  }
+                                />
+                              )}
                           </div>
                         ))}
                       </div>
@@ -1498,8 +1813,7 @@ export default function Home() {
                             </p>
                           )}
                         </div>
-                        {canManageTasks &&
-                          task.ownerId === currentUser?.id && (
+                        {canManageTasks && task.ownerId === currentUser?.id && (
                           <div className="flex shrink-0 items-center gap-1.5">
                             <button
                               type="button"
