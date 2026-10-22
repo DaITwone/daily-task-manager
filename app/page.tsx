@@ -301,8 +301,6 @@ export default function Home() {
   }, [router]);
 
   useEffect(() => {
-    if (checkingSession) return;
-
     let active = true;
 
     async function loadTasks() {
@@ -385,7 +383,6 @@ export default function Home() {
       active = false;
     };
   }, [
-    checkingSession,
     view,
     currentDate.getTime(),
     selectedDate.getTime(),
@@ -1705,7 +1702,7 @@ export default function Home() {
       )}
       {deletingTask && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#173b2e]/55 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0b3d2e]/55 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
             if (
               event.target === event.currentTarget &&
@@ -1720,50 +1717,68 @@ export default function Home() {
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-task-title"
-            className="w-full max-w-[420px] rounded-[28px] border border-[#f0e4d2] bg-white p-6 shadow-[0_24px_80px_rgba(32,61,48,0.24)] sm:p-8"
+            className="relative w-full max-w-[440px] overflow-hidden rounded-[32px] bg-white p-6 shadow-[0_30px_90px_rgba(0,128,97,0.28)] sm:p-8"
           >
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0ed] text-[#EE2A24]">
-              <Icon name="trash" size={25} />
-            </div>
-            <div className="text-center">
-              <h2
-                id="delete-task-title"
-                className="text-xl font-extrabold text-[#263b33]"
-              >
-                Xóa công việc này?
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-[#64736c]">
-                Công việc “{deletingTask.title}” sẽ bị xóa vĩnh viễn khỏi lịch.
-              </p>
-            </div>
-            {taskError && (
-              <p
-                role="alert"
-                className="mt-4 rounded-xl border border-[#f2c6bd] bg-[#fff0ed] px-3 py-2 text-sm text-[#b4231e]"
-              >
-                {taskError}
-              </p>
-            )}
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                disabled={deletingTaskBusy}
-                onClick={() => {
-                  setDeletingTask(null);
-                  setTaskError("");
-                }}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold text-[#008061] hover:bg-[#e8f4ef] disabled:opacity-50"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={deletingTaskBusy}
-                onClick={handleDeleteTask}
-                className="rounded-full bg-[#EE2A24] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#cf211c] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {deletingTaskBusy ? "Đang xóa..." : "Xóa công việc"}
-              </button>
+            {/* Hình khối trang trí */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-[#F47B20]/90"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-[#fde6d1]"
+            />
+
+            <div className="relative">
+              {/* Thanh 3 màu */}
+              <div className="mb-6 flex h-1.5 w-14 overflow-hidden">
+                <span className="flex-1 bg-[#F47B20]" />
+                <span className="flex-1 bg-[#008061]" />
+                <span className="flex-1 bg-[#EE2A24]" />
+              </div>
+
+              <div className="text-left">
+                <h2
+                  id="delete-task-title"
+                  className="text-[26px] font-extrabold leading-tight tracking-tight text-[#14261f]"
+                >
+                  Xóa công việc này?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-[#5f6f68]">
+                  Công việc “{deletingTask.title}” sẽ bị xóa vĩnh viễn khỏi lịch.
+                </p>
+              </div>
+
+              {taskError && (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-2xl border border-[#f7c9c4] bg-[#fff0ed] px-4 py-3 text-sm font-medium text-[#b4231e]"
+                >
+                  {taskError}
+                </p>
+              )}
+
+              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  disabled={deletingTaskBusy}
+                  onClick={() => {
+                    setDeletingTask(null);
+                    setTaskError("");
+                  }}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-[#dbe6e1] bg-[#f6f9f8] px-7 text-sm font-bold text-[#008061] transition-colors hover:bg-[#e8f4ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingTaskBusy}
+                  onClick={handleDeleteTask}
+                  className="inline-flex h-12 min-w-[140px] items-center justify-center rounded-2xl bg-[#EE2A24] px-7 text-sm font-bold text-white shadow-[0_10px_24px_rgba(238,42,36,0.3)] transition-colors hover:bg-[#cf211c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE2A24]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deletingTaskBusy ? "Đang xóa..." : "Xóa công việc"}
+                </button>
+              </div>
             </div>
           </section>
         </div>

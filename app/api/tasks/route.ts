@@ -74,9 +74,9 @@ async function getAuthenticatedUser() {
 // GET /api/tasks?view=month&date=2026-10-22
 export async function GET(request: Request) {
   try {
-    const user = await getAuthenticatedUser();
+    const session = await getCurrentSession();
 
-    if (!user) {
+    if (!session) {
       return NextResponse.json(
         { message: "Vui lòng đăng nhập để xem lịch." },
         { status: 401 },
@@ -112,27 +112,39 @@ export async function GET(request: Request) {
 
     const { start, end } = getDateRange(view, date);
 
-    const tasks = await prisma.task.findMany({
-      where: {
-        taskDate: {
-          gte: start,
-          lt: end,
-        },
-      },
-      orderBy: [
-        { taskDate: "asc" },
-        { createdAt: "desc" },
-      ],
-      include: {
-        user: {
-          select: {
-            employeeId: true,
-            fullName: true,
-            jobTitle: true,
+    const [user, tasks] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { id: true },
+      }),
+      prisma.task.findMany({
+        where: {
+          taskDate: {
+            gte: start,
+            lt: end,
           },
         },
-      },
-    });
+        orderBy: [{ taskDate: "asc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          userId: true,
+          title: true,
+          description: true,
+          taskDate: true,
+          status: true,
+          user: {
+            select: { employeeId: true, fullName: true, jobTitle: true },
+          },
+        },
+      }),
+    ]);
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Vui lòng đăng nhập để xem lịch." },
+        { status: 401 },
+      );
+    }
 
     return NextResponse.json({
       view,
