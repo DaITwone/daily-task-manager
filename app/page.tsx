@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
@@ -336,6 +337,7 @@ export default function Home() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const lastCalendarTap = useRef<{ date: string; time: number } | null>(null);
 
   const [newTitle, setNewTitle] = useState("");
 
@@ -1195,6 +1197,30 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
     }
   }
 
+  function openTaskFormForDate(date: Date) {
+    setSelectedDate(new Date(date));
+    setCurrentDate(new Date(date));
+    setNewDate(isoDate(date));
+    setEditingTask(null);
+    setShowCreate(true);
+  }
+
+  function handleCalendarCellTap(date: Date) {
+    setSelectedDate(new Date(date));
+    if (!canManageTasks) return;
+
+    const dateKey = isoDate(date);
+    const now = Date.now();
+    const previousTap = lastCalendarTap.current;
+    if (previousTap?.date === dateKey && now - previousTap.time < 450) {
+      lastCalendarTap.current = null;
+      openTaskFormForDate(date);
+      return;
+    }
+
+    lastCalendarTap.current = { date: dateKey, time: now };
+  }
+
   return (
     <main className="relative min-h-screen bg-[#FFF8EC] text-[#263b33]">
       <div
@@ -1206,26 +1232,19 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
         <span className="absolute right-1/4 top-8 h-8 w-8 rounded-full bg-[#EE2A24]/20" />
       </div>
 
-      {sidebarOpen && (
-        <button
-          aria-label="Đóng menu"
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-[#173b2e]/30 backdrop-blur-[2px] md:hidden"
-        />
-      )}
-
       <div className="relative z-10 flex min-h-screen">
+        {sidebarOpen && (
+          <button
+            aria-label="Đóng menu"
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 z-40 bg-[#173b2e]/30 backdrop-blur-[2px] md:hidden"
+          />
+        )}
+
         <aside
           className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "md:hidden" : ""} fixed inset-y-0 left-0 z-50 flex w-[256px] flex-col bg-[#FFF8EC]/90 px-4 py-5 transition-transform duration-200 md:sticky md:top-0 md:h-screen md:translate-x-0`}
         >
           <div className="mb-7 flex items-center gap-3 px-2">
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="rounded-full p-2 hover:bg-[#f4eadb] md:hidden"
-              aria-label="Đóng menu"
-            >
-              <Icon name="close" />
-            </button>
             <div
               title="Daily Task"
               className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#f0e4d2]"
@@ -1252,7 +1271,10 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
             <button
               title="Tạo công việc"
               aria-label="Tạo công việc"
-              onClick={() => setShowCreate(true)}
+              onClick={() => {
+                setSidebarOpen(false);
+                setShowCreate(true);
+              }}
               className="mb-7 flex h-12 w-fit items-center gap-3 rounded-2xl bg-white px-5 text-sm font-semibold text-[#263b33] shadow-[0_8px_20px_rgba(0,96,65,0.12)] ring-1 ring-[#e8dfd0] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,96,65,0.16)]"
             >
               <span className="text-[#F47B20]">
@@ -1372,7 +1394,10 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                 </p>
               </div>
               <button
-                onClick={() => setShowLogoutConfirm(true)}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  setShowLogoutConfirm(true);
+                }}
                 disabled={loggingOut}
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
@@ -1487,20 +1512,20 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
 
           <div className="border-b border-[#f0e4d2] px-3 py-3 sm:hidden">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
+              <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#e8dfd0] bg-white px-3 text-[#78867f]">
                 <Icon name="search" size={17} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Tìm công việc hoặc nhân viên"
-                  className="absolute inset-0 w-full bg-transparent pl-7 text-sm outline-none placeholder:text-[#89948e]"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#263b33] outline-none placeholder:text-[#89948e]"
                 />
-              </div>
+              </label>
               <select
                 aria-label="Chế độ xem"
                 value={view}
                 onChange={(e) => setView(e.target.value as View)}
-                className="rounded-xl border border-[#e8dfd0] bg-white px-2 py-2 text-xs"
+                className="h-10 shrink-0 rounded-xl border border-[#e8dfd0] bg-white px-2 text-xs"
               >
                 <option value="day">Ngày</option>
                 <option value="week">Tuần</option>
@@ -1598,21 +1623,18 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                     return (
                       <div
                         key={isoDate(date)}
-                        onClick={() => setSelectedDate(new Date(date))}
+                        onClick={() => {
+                          handleCalendarCellTap(date);
+                        }}
                         onDoubleClick={() => {
-                          if (!canManageTasks) return;
-                          setSelectedDate(new Date(date));
-                          setCurrentDate(new Date(date));
-                          setNewDate(isoDate(date));
-                          setEditingTask(null);
-                          setShowCreate(true);
+                          if (canManageTasks) openTaskFormForDate(date);
                         }}
                         title={
                           canManageTasks
                             ? "Nhấn đúp để tạo công việc"
                             : undefined
                         }
-                        className={`group flex min-h-[92px] min-w-0 flex-col border-b border-r border-[#f0e8dc] p-1 text-left transition last:border-r-0 hover:bg-[#fffaf2] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f1f8f4]" : "bg-white"}`}
+                        className={`group flex min-h-[68px] min-w-0 touch-manipulation flex-col border-b border-r border-[#f0e8dc] p-1 text-left transition last:border-r-0 hover:bg-[#fffaf2] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f1f8f4]" : "bg-white"}`}
                       >
                         <button
                           type="button"
@@ -1623,7 +1645,7 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                           {date.getDate()}
                         </button>
 
-                        <div className="flex w-full flex-col gap-1">
+                        <div className="hidden w-full flex-col gap-1 sm:flex">
                           {dayTasks.slice(0, 3).map((task) => (
                             <div
                               key={task.id}
@@ -1683,6 +1705,31 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                             </button>
                           )}
                         </div>
+                        {dayTasks.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedDate(new Date(date));
+                              setView("day");
+                            }}
+                            aria-label={`Xem ${dayTasks.length} công việc ngày ${date.getDate()}`}
+                            className="mt-auto flex min-h-6 w-full items-center justify-center gap-1 pb-0.5 pt-1 sm:hidden"
+                          >
+                            <span className="flex items-center gap-0.5">
+                              {dayTasks.slice(0, 3).map((task) => (
+                                <span
+                                  key={task.id}
+                                  aria-hidden="true"
+                                  className={`h-1.5 w-1.5 rounded-full ${taskDot[task.color]}`}
+                                />
+                              ))}
+                            </span>
+                            <span className="text-[9px] font-semibold leading-none text-[#52615b]">
+                              {dayTasks.length}
+                            </span>
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -1696,6 +1743,18 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                   {visibleDays.map((date) => (
                     <div
                       key={isoDate(date)}
+                      onClick={(event) => {
+                        if (
+                          event.target instanceof Element &&
+                          event.target.closest("button")
+                        ) {
+                          return;
+                        }
+                        handleCalendarCellTap(date);
+                      }}
+                      onDoubleClick={() => {
+                        if (canManageTasks) openTaskFormForDate(date);
+                      }}
                       className="min-h-[480px] border-r border-[#f0e8dc] last:border-r-0"
                     >
                       <button
@@ -1759,14 +1818,14 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
 
             {view === "day" && (
               <div className="overflow-hidden rounded-[24px] border border-[#eadfce] bg-white shadow-[0_12px_35px_rgba(72,61,43,0.08)]">
-                <div className="flex items-center gap-4 border-b border-[#f0e8dc] bg-[#fffaf2] px-5 py-4">
+                <div className="flex flex-wrap items-center gap-3 border-b border-[#f0e8dc] bg-[#fffaf2] px-4 py-4 sm:flex-nowrap sm:gap-4 sm:px-5">
                   <span
                     className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold ${isoDate(selectedDate) === isoDate(todayDate) ? "bg-[#008061] text-white" : "bg-[#f4eadb] text-[#43564d]"}`}
                   >
                     {selectedDate.getDate()}
                   </span>
-                  <div>
-                    <h2 className="text-base font-medium capitalize">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="break-words text-base font-medium capitalize">
                       {longDate(selectedDate)}
                     </h2>
                     <p className="mt-1 text-xs text-[#78867f]">
@@ -1776,7 +1835,7 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                   {canManageTasks && (
                     <button
                       onClick={() => setShowCreate(true)}
-                      className="ml-auto flex items-center gap-2 rounded-full bg-[#008061] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51]"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[#008061] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51] sm:ml-auto sm:w-auto"
                     >
                       <Icon name="plus" size={18} />
                       Tạo công việc
@@ -1896,7 +1955,7 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                 <span className="h-2.5 w-2.5 rounded-sm bg-[#008061]" />
                 Hoàn thành
               </span>
-              <span className="ml-auto text-[11px] text-[#89948e]">
+              <span className="text-[11px] text-[#89948e] sm:ml-auto">
                 {totalTasks} công việc · {unfinishedTasks} chưa hoàn thành ·{" "}
                 {completedTasks} hoàn thành
               </span>
