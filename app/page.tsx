@@ -69,22 +69,22 @@ const shortWeekday = (date: Date) =>
   new Intl.DateTimeFormat("vi-VN", { weekday: "short" }).format(date);
 
 const taskTone: Record<TaskColor, string> = {
-  green: "border-l-[#188038] bg-[#e6f4ea] text-[#137333]",
+  green: "border-l-[#008061] bg-[#e8f4ef] text-[#006b51]",
 
-  orange: "border-l-[#e37400] bg-[#fef7e0] text-[#b06000]",
+  orange: "border-l-[#F47B20] bg-[#fff1df] text-[#a34a00]",
 
-  red: "border-l-[#d93025] bg-[#fce8e6] text-[#c5221f]",
+  red: "border-l-[#EE2A24] bg-[#fff0ed] text-[#b4231e]",
 };
 
 const taskDot: Record<TaskColor, string> = {
-  green: "bg-[#188038]",
-  orange: "bg-[#e37400]",
-  red: "bg-[#d93025]",
+  green: "bg-[#008061]",
+  orange: "bg-[#F47B20]",
+  red: "bg-[#EE2A24]",
 };
 
 const statusColor: Record<TaskStatus, string> = {
-  "Chưa hoàn thành": "bg-[#fef7e0] text-[#8a5300]",
-  "Hoàn thành": "bg-[#e6f4ea] text-[#137333]",
+  "Chưa hoàn thành": "bg-[#fff1df] text-[#a34a00]",
+  "Hoàn thành": "bg-[#e8f4ef] text-[#006b51]",
 };
 
 function Icon({ name, size = 20 }: { name: string; size?: number }) {
@@ -571,43 +571,52 @@ export default function Home() {
 
   if (checkingSession)
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white text-[#5f6368]">
+      <main className="flex min-h-screen items-center justify-center bg-[#FFF8EC] text-[#52615b]">
         <div className="flex items-center gap-3 text-sm">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#1a73e8] border-t-transparent" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#008061] border-t-transparent" />
           Đang kiểm tra phiên đăng nhập...
         </div>
       </main>
     );
 
   return (
-    <main className="min-h-screen bg-[#F8FAFD] text-[#3c4043]">
+    <main className="relative min-h-screen overflow-hidden bg-[#FFF8EC] text-[#263b33]">
+      <div
+        className="pointer-events-none fixed inset-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        <span className="absolute -left-24 top-24 h-72 w-72 rounded-full bg-[#F47B20]/10" />
+        <span className="absolute -right-20 bottom-8 h-80 w-80 rotate-12 rounded-[4rem] bg-[#008061]/[0.07]" />
+        <span className="absolute right-1/4 top-8 h-8 w-8 rounded-full bg-[#EE2A24]/20" />
+      </div>
+
       {sidebarOpen && (
         <button
           aria-label="Đóng menu"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
+          className="fixed inset-0 z-40 bg-[#173b2e]/30 backdrop-blur-[2px] md:hidden"
         />
       )}
 
-      <div className="flex min-h-screen">
+      <div className="relative z-10 flex min-h-screen">
         <aside
-          className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "md:hidden" : ""} fixed inset-y-0 left-0 z-50 flex w-[256px] flex-col bg-[#f8fafd] px-4 py-5 transition-transform duration-200 md:sticky md:top-0 md:h-screen md:translate-x-0`}
+          className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "md:hidden" : ""} fixed inset-y-0 left-0 z-50 flex w-[256px] flex-col bg-[#FFF8EC]/90 px-4 py-5 transition-transform duration-200 md:sticky md:top-0 md:h-screen md:translate-x-0`}
         >
           <div className="mb-7 flex items-center gap-3 px-2">
             <button
               onClick={() => setSidebarOpen(false)}
-              className="rounded-full p-2 hover:bg-[#e8eaed] md:hidden"
+              className="rounded-full p-2 hover:bg-[#f4eadb] md:hidden"
               aria-label="Đóng menu"
             >
               <Icon name="close" />
             </button>
             <div
-              title="Daily Task Manager"
-              className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white"
+              title="Daily Task"
+              className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#f0e4d2]"
             >
               <Image
                 src="/images/logo.png"
-                alt="Daily Task Manager logo"
+                alt="Daily Task logo"
                 width={200}
                 height={200}
                 className="h-full w-full object-contain"
@@ -617,46 +626,47 @@ export default function Home() {
               />
             </div>
             <div className="min-w-0">
-              <p className="text-[21px] font-normal tracking-tight text-[#5f6368]">
-                Calendar
+              <p className="truncate text-[16px] font-extrabold tracking-tight text-[#008061]">
+                Daily Task
               </p>
-              <p className="text-[11px] text-[#80868b]">Daily Task Manager</p>
+              <p className="text-[11px] text-[#78867f]">Checklist công việc</p>
             </div>
           </div>
           <button
             title="Tạo công việc"
             aria-label="Tạo công việc"
             onClick={() => setShowCreate(true)}
-            className="mb-7 flex h-12 w-fit items-center gap-3 rounded-2xl border border-[#dadce0] bg-white px-5 text-sm font-medium shadow-[0_1px_2px_rgba(60,64,67,.15)] transition hover:bg-[#f8fafd] hover:shadow-md"
+            className="mb-7 flex h-12 w-fit items-center gap-3 rounded-2xl bg-white px-5 text-sm font-semibold text-[#263b33] shadow-[0_8px_20px_rgba(0,96,65,0.12)] ring-1 ring-[#e8dfd0] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,96,65,0.16)]"
           >
-            <span className="text-[#1a73e8]">
+            <span className="text-[#F47B20]">
               <Icon name="plus" size={23} />
             </span>
+            Tạo công việc
           </button>
 
           <div className="mb-5 px-2">
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs font-medium text-[#3c4043]">
+              <p className="text-xs font-semibold capitalize text-[#43564d]">
                 {monthLabel(currentDate)}
               </p>
               <div className="flex">
                 <button
                   aria-label="Tháng trước"
                   onClick={() => moveDate(-1)}
-                  className="rounded-full p-1.5 hover:bg-[#e8eaed]"
+                  className="rounded-full p-1.5 hover:bg-[#f4eadb]"
                 >
                   <Icon name="chevronLeft" size={17} />
                 </button>
                 <button
                   aria-label="Tháng sau"
                   onClick={() => moveDate(1)}
-                  className="rounded-full p-1.5 hover:bg-[#e8eaed]"
+                  className="rounded-full p-1.5 hover:bg-[#f4eadb]"
                 >
                   <Icon name="chevronRight" size={17} />
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-7 text-center text-[10px] text-[#70757a]">
+            <div className="grid grid-cols-7 text-center text-[10px] text-[#78867f]">
               {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d) => (
                 <span key={d} className="pb-2">
                   {d}
@@ -680,7 +690,7 @@ export default function Home() {
                       setView("day");
                       setSidebarOpen(false);
                     }}
-                    className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-[11px] ${selected ? "bg-[#d3e3fd] font-bold text-[#174ea6]" : todayInDisplayedMonth ? "bg-[#1a73e8] font-medium text-white" : !sameDisplayedMonth ? "text-[#bdc1c6]" : "hover:bg-[#e8eaed]"}`}
+                    className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-[11px] ${selected ? "bg-[#008061]/15 font-bold text-[#006b51]" : todayInDisplayedMonth ? "bg-[#008061] font-medium text-white" : !sameDisplayedMonth ? "text-[#c8c3ba]" : "hover:bg-[#f4eadb]"}`}
                   >
                     {date.getDate()}
                   </button>
@@ -688,30 +698,30 @@ export default function Home() {
               })}
             </div>
           </div>
-          <div className="border-t border-[#dadce0] pt-5">
-            <p className="mb-3 px-2 text-xs font-medium text-[#5f6368]">
+          <div className="border-t border-[#f0e4d2] pt-5">
+            <p className="mb-3 px-2 text-xs font-semibold text-[#78867f]">
               Lịch của bạn
             </p>
             <button
               title="Công việc cá nhân"
-              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#e8eaed]"
+              className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-[#f4eadb]"
             >
-              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#1a73e8]" />
+              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#F47B20]" />
               Công việc cá nhân
             </button>
             <button
               title="Lịch nhóm"
-              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#e8eaed]"
+              className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-[#f4eadb]"
             >
-              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#188038]" />
+              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#008061]" />
               Lịch nhóm
             </button>
           </div>
-          <div className="mt-auto border-t border-[#dadce0] pt-4">
+          <div className="mt-auto border-t border-[#f0e4d2] pt-4">
             <div className="flex items-center gap-3 px-2">
               <span
                 title={currentUser?.fullName ?? "Tài khoản"}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-semibold text-white"
               >
                 {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
               </span>
@@ -719,7 +729,7 @@ export default function Home() {
                 <p className="truncate text-sm font-medium">
                   {currentUser?.fullName ?? "Daily Task Manager"}
                 </p>
-                <p className="text-xs text-[#70757a]">
+                <p className="text-xs text-[#78867f]">
                   {currentUser
                     ? `${currentUser.employeeId} · ${currentUser.jobTitle}`
                     : "Team calendar"}
@@ -730,7 +740,7 @@ export default function Home() {
                 disabled={loggingOut}
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
-                className="rounded-full p-2 text-[#5f6368] hover:bg-[#e8eaed] disabled:opacity-50"
+                className="rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb] disabled:opacity-50"
               >
                 <Icon name="logout" size={18} />
               </button>
@@ -743,12 +753,12 @@ export default function Home() {
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1 bg-[#F8FAFD]">
-          <header className="sticky top-0 z-30 flex min-h-[68px] items-center gap-3 bg-[#F8FAFD] px-3 sm:px-5">
+        <section className="min-w-0 flex-1">
+          <header className="sticky top-0 z-30 flex min-h-[72px] items-center gap-3 bg-[#FFF8EC]/90 px-3 backdrop-blur-xl sm:px-5">
             <button
               aria-label="Mở menu"
               onClick={() => setSidebarOpen(true)}
-              className="rounded-full p-2 hover:bg-[#f1f3f4] md:hidden"
+              className="rounded-full p-2 hover:bg-[#f4eadb] md:hidden"
             >
               <Icon name="menu" />
             </button>
@@ -761,7 +771,7 @@ export default function Home() {
                 sidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"
               }
               onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-              className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[#e2e8f0] bg-white/70 text-[#475569] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#bfdbfe] hover:bg-white hover:text-[#1a73e8] hover:shadow-md md:inline-flex"
+              className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[#eadfce] bg-white/70 text-[#52615b] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#008061]/30 hover:bg-white hover:text-[#008061] hover:shadow-md md:inline-flex"
             >
               <Icon
                 name={sidebarCollapsed ? "panelLeftOpen" : "panelLeftClose"}
@@ -771,7 +781,7 @@ export default function Home() {
             <div className="ml-0 flex items-center gap-2 sm:ml-1">
               <button
                 onClick={goToday}
-                className="h-9 rounded-md border border-[#dadce0] px-4 text-sm font-medium hover:bg-[#f8fafd]"
+                className="h-9 rounded-xl border border-[#e8dfd0] bg-white/70 px-4 text-sm font-semibold text-[#43564d] transition hover:border-[#008061]/30 hover:bg-white"
               >
                 Hôm nay
               </button>
@@ -780,21 +790,21 @@ export default function Home() {
                 <button
                   aria-label="Kỳ trước"
                   onClick={() => moveDate(-1)}
-                  className="rounded-full p-2 hover:bg-[#f1f3f4]"
+                  className="rounded-full p-2 hover:bg-[#f4eadb]"
                 >
                   <Icon name="chevronLeft" />
                 </button>
                 <button
                   aria-label="Kỳ tiếp theo"
                   onClick={() => moveDate(1)}
-                  className="rounded-full p-2 hover:bg-[#f1f3f4]"
+                  className="rounded-full p-2 hover:bg-[#f4eadb]"
                 >
                   <Icon name="chevronRight" />
                 </button>
               </div>
             </div>
 
-            <h1 className="min-w-0 flex-1 truncate pl-1 text-lg font-normal capitalize text-[#3c4043] sm:pl-3 sm:text-[22px]">
+            <h1 className="min-w-0 flex-1 truncate pl-1 text-lg font-extrabold capitalize tracking-tight text-[#263b33] sm:pl-3 sm:text-[22px]">
               {view === "day"
                 ? longDate(selectedDate)
                 : view === "week"
@@ -802,12 +812,12 @@ export default function Home() {
                   : monthLabel(currentDate)}
             </h1>
 
-            <div className="hidden items-center rounded-lg border border-[#dadce0] p-0.5 sm:flex">
+            <div className="hidden items-center rounded-xl border border-[#e8dfd0] bg-white/70 p-1 shadow-sm sm:flex">
               {(["day", "week", "month"] as View[]).map((item) => (
                 <button
                   key={item}
                   onClick={() => setView(item)}
-                  className={`rounded-md px-3 py-2 text-xs font-medium ${view === item ? "bg-[#e8f0fe] text-[#174ea6]" : "text-[#5f6368] hover:bg-[#f1f3f4]"}`}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${view === item ? "bg-[#008061] text-white shadow-sm" : "text-[#52615b] hover:bg-[#f4eadb]"}`}
                 >
                   {{ day: "Ngày", week: "Tuần", month: "Tháng" }[item]}
                 </button>
@@ -816,27 +826,27 @@ export default function Home() {
 
             <button
               title="Tìm kiếm"
-              className="rounded-full p-2 text-[#5f6368] hover:bg-[#f1f3f4]"
+              className="rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb]"
             >
               <Icon name="search" />
             </button>
 
             <button
               title="Cài đặt"
-              className="hidden rounded-full p-2 text-[#5f6368] hover:bg-[#f1f3f4] sm:block"
+              className="hidden rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb] sm:block"
             >
               <Icon name="settings" />
             </button>
 
             <span
               title={currentUser?.fullName ?? "Tài khoản"}
-              className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]"
+              className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-semibold text-white"
             >
               {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
             </span>
           </header>
 
-          <div className="border-b border-[#dadce0] px-3 py-3 sm:hidden">
+          <div className="border-b border-[#f0e4d2] px-3 py-3 sm:hidden">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Icon name="search" size={17} />
@@ -844,14 +854,14 @@ export default function Home() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Tìm công việc hoặc nhân viên"
-                  className="absolute inset-0 w-full bg-transparent pl-7 text-sm outline-none placeholder:text-[#80868b]"
+                  className="absolute inset-0 w-full bg-transparent pl-7 text-sm outline-none placeholder:text-[#89948e]"
                 />
               </div>
               <select
                 aria-label="Chế độ xem"
                 value={view}
                 onChange={(e) => setView(e.target.value as View)}
-                className="rounded-md border border-[#dadce0] bg-white px-2 py-2 text-xs"
+                className="rounded-xl border border-[#e8dfd0] bg-white px-2 py-2 text-xs"
               >
                 <option value="day">Ngày</option>
                 <option value="week">Tuần</option>
@@ -867,7 +877,7 @@ export default function Home() {
               </span>
               <button
                 onClick={() => setShowCreate(true)}
-                className="ml-auto flex items-center gap-1 rounded-full bg-[#1a73e8] px-3 py-2 text-xs font-medium text-white"
+                className="ml-auto flex items-center gap-1 rounded-full bg-[#008061] px-3 py-2 text-xs font-semibold text-white shadow-sm"
               >
                 <Icon name="plus" size={16} /> Tạo
               </button>
@@ -876,15 +886,15 @@ export default function Home() {
             {taskError && (
               <div
                 role="alert"
-                className="mb-3 rounded-lg border border-[#f4c7c3] bg-[#fce8e6] px-4 py-3 text-sm text-[#b3261e]"
+                className="mb-3 rounded-2xl border border-[#f2c6bd] bg-[#fff0ed] px-4 py-3 text-sm text-[#b4231e]"
               >
                 {taskError}
               </div>
             )}
 
             {view === "month" && (
-              <div className="overflow-hidden rounded-lg border border-[#dadce0]">
-                <div className="grid grid-cols-7 border-b border-[#dadce0]">
+              <div className="overflow-hidden rounded-[24px] border border-[#eadfce] bg-white shadow-[0_12px_35px_rgba(72,61,43,0.08)]">
+                <div className="grid grid-cols-7 border-b border-[#eadfce] bg-[#fffaf2]">
                   {[
                     "Thứ 2",
                     "Thứ 3",
@@ -896,7 +906,7 @@ export default function Home() {
                   ].map((day) => (
                     <div
                       key={day}
-                      className="border-r border-[#dadce0] py-3 text-center text-[10px] font-medium text-[#70757a] last:border-r-0 sm:text-xs"
+                      className="border-r border-[#eadfce] py-3 text-center text-[10px] font-bold uppercase tracking-wide text-[#78867f] last:border-r-0 sm:text-xs"
                     >
                       {day}
                     </div>
@@ -926,10 +936,10 @@ export default function Home() {
                           setShowCreate(true);
                         }}
                         title="Nhấn đúp để tạo công việc"
-                        className={`group flex min-h-[92px] min-w-0 flex-col border-b border-r border-[#dadce0] p-1 text-left transition last:border-r-0 hover:bg-[#f8fafd] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f8fafd]" : "bg-white"}`}
+                        className={`group flex min-h-[92px] min-w-0 flex-col border-b border-r border-[#f0e8dc] p-1 text-left transition last:border-r-0 hover:bg-[#fffaf2] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f1f8f4]" : "bg-white"}`}
                       >
                         <span
-                          className={`mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${today ? "bg-[#1a73e8] font-semibold text-white" : outside ? "text-[#bdc1c6]" : "text-[#3c4043]"} ${selected && !today ? "bg-[#d3e3fd] font-semibold text-[#174ea6]" : ""}`}
+                          className={`mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${today ? "bg-[#008061] font-semibold text-white" : outside ? "text-[#c8c3ba]" : "text-[#43564d]"} ${selected && !today ? "bg-[#008061]/15 font-semibold text-[#006b51]" : ""}`}
                         >
                           {date.getDate()}
                         </span>
@@ -946,7 +956,7 @@ export default function Home() {
                           ))}
 
                           {dayTasks.length > 3 && (
-                            <span className="px-1 text-[10px] font-medium text-[#5f6368]">
+                            <span className="px-1 text-[10px] font-semibold text-[#78867f]">
                               +{dayTasks.length - 3} nữa
                             </span>
                           )}
@@ -959,25 +969,25 @@ export default function Home() {
             )}
 
             {view === "week" && (
-              <div className="overflow-x-auto rounded-lg border border-[#dadce0]">
+              <div className="overflow-x-auto rounded-[24px] border border-[#eadfce] bg-white shadow-[0_12px_35px_rgba(72,61,43,0.08)]">
                 <div className="grid min-w-[700px] grid-cols-7">
                   {visibleDays.map((date) => (
                     <div
                       key={isoDate(date)}
-                      className="min-h-[480px] border-r border-[#dadce0] last:border-r-0"
+                      className="min-h-[480px] border-r border-[#f0e8dc] last:border-r-0"
                     >
                       <button
                         onClick={() => {
                           setSelectedDate(new Date(date));
                           setView("day");
                         }}
-                        className="flex w-full flex-col items-center border-b border-[#dadce0] py-3 hover:bg-[#f8fafd]"
+                        className="flex w-full flex-col items-center border-b border-[#f0e8dc] py-3 hover:bg-[#fffaf2]"
                       >
-                        <span className="text-[11px] uppercase text-[#70757a]">
+                        <span className="text-[11px] font-semibold uppercase text-[#78867f]">
                           {shortWeekday(date)}
                         </span>
                         <span
-                          className={`mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg ${isoDate(date) === isoDate(new Date()) ? "bg-[#1a73e8] text-white" : "text-[#3c4043]"}`}
+                          className={`mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg ${isoDate(date) === isoDate(new Date()) ? "bg-[#008061] font-semibold text-white" : "text-[#43564d]"}`}
                         >
                           {date.getDate()}
                         </span>
@@ -1005,10 +1015,10 @@ export default function Home() {
             )}
 
             {view === "day" && (
-              <div className="overflow-hidden rounded-lg border border-[#dadce0]">
-                <div className="flex items-center gap-4 border-b border-[#dadce0] px-5 py-4">
+              <div className="overflow-hidden rounded-[24px] border border-[#eadfce] bg-white shadow-[0_12px_35px_rgba(72,61,43,0.08)]">
+                <div className="flex items-center gap-4 border-b border-[#f0e8dc] bg-[#fffaf2] px-5 py-4">
                   <span
-                    className={`flex h-12 w-12 items-center justify-center rounded-full text-xl ${isoDate(selectedDate) === isoDate(new Date()) ? "bg-[#1a73e8] text-white" : "bg-[#f1f3f4] text-[#3c4043]"}`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold ${isoDate(selectedDate) === isoDate(new Date()) ? "bg-[#008061] text-white" : "bg-[#f4eadb] text-[#43564d]"}`}
                   >
                     {selectedDate.getDate()}
                   </span>
@@ -1016,13 +1026,13 @@ export default function Home() {
                     <h2 className="text-base font-medium capitalize">
                       {longDate(selectedDate)}
                     </h2>
-                    <p className="mt-1 text-xs text-[#70757a]">
+                    <p className="mt-1 text-xs text-[#78867f]">
                       {tasksForDate(selectedDate).length} công việc
                     </p>
                   </div>
                   <button
                     onClick={() => setShowCreate(true)}
-                    className="ml-auto flex items-center gap-2 rounded-full bg-[#1a73e8] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1765cc]"
+                    className="ml-auto flex items-center gap-2 rounded-full bg-[#008061] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51]"
                   >
                     <Icon name="plus" size={18} />
                     Tạo công việc
@@ -1031,21 +1041,21 @@ export default function Home() {
 
                 {tasksForDate(selectedDate).length === 0 ? (
                   <div className="px-4 py-16 text-center">
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f1f3f4] text-[#5f6368]">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e8f4ef] text-[#008061]">
                       <Icon name="calendar" size={22} />
                     </div>
-                    <p className="text-sm text-[#5f6368]">
+                    <p className="text-sm text-[#52615b]">
                       Ngày này chưa có công việc
                     </p>
                     <button
                       onClick={() => setShowCreate(true)}
-                      className="mt-4 rounded-full border border-[#dadce0] px-4 py-2 text-sm font-medium text-[#1a73e8] hover:bg-[#f8fafd]"
+                      className="mt-4 rounded-full border border-[#008061]/30 px-4 py-2 text-sm font-semibold text-[#008061] transition hover:bg-[#e8f4ef]"
                     >
                       + Tạo công việc
                     </button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#dadce0]">
+                  <div className="divide-y divide-[#f0e8dc]">
                     {tasksForDate(selectedDate).map((task) => (
                       <div
                         key={task.id}
@@ -1056,7 +1066,7 @@ export default function Home() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{task.title}</p>
-                          <p className="mt-1 text-xs text-[#70757a]">
+                          <p className="mt-1 text-xs text-[#78867f]">
                             {task.owner} · {task.role} · {task.employeeId}
                           </p>
                           <span
@@ -1072,16 +1082,16 @@ export default function Home() {
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-xs text-[#5f6368]">
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-xs text-[#52615b]">
               <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#e37400]" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-[#F47B20]" />
                 Chưa hoàn thành
               </span>
               <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#188038]" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-[#008061]" />
                 Hoàn thành
               </span>
-              <span className="ml-auto text-[11px] text-[#80868b]">
+              <span className="ml-auto text-[11px] text-[#89948e]">
                 {totalTasks} công việc · {unfinishedTasks} chưa hoàn thành ·{" "}
                 {completedTasks} hoàn thành
               </span>
@@ -1092,7 +1102,7 @@ export default function Home() {
 
       {showLogoutConfirm && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#202124]/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#173b2e]/50 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !loggingOut) {
               setShowLogoutConfirm(false);
@@ -1105,11 +1115,11 @@ export default function Home() {
             aria-modal="true"
             aria-labelledby="logout-confirm-title"
             aria-describedby="logout-confirm-description"
-            className="w-full max-w-[420px] animate-[logoutIn_160ms_ease-out] overflow-hidden rounded-[28px] bg-white shadow-[0_24px_80px_rgba(32,33,36,0.28)] ring-1 ring-black/5 motion-reduce:animate-none"
+            className="w-full max-w-[420px] animate-[logoutIn_160ms_ease-out] overflow-hidden rounded-[28px] border border-[#f0e4d2] bg-white shadow-[0_24px_80px_rgba(32,61,48,0.24)] ring-1 ring-black/5 motion-reduce:animate-none"
           >
             <div className="px-6 pb-5 pt-7 sm:px-8">
               {/* Icon */}
-              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#fce8e6] text-[#d93025]">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0ed] text-[#EE2A24]">
                 <Icon name="logout" size={26} />
               </div>
 
@@ -1117,28 +1127,22 @@ export default function Home() {
               <div className="text-center">
                 <h2
                   id="logout-confirm-title"
-                  className="text-[22px] font-normal tracking-tight text-[#202124]"
+                  className="text-[22px] font-extrabold tracking-tight text-[#263b33]"
                 >
                   Đăng xuất khỏi tài khoản?
                 </h2>
-                <p
-                  id="logout-confirm-description"
-                  className="mt-2 text-sm leading-6 text-[#5f6368]"
-                >
-                  Bạn sẽ cần đăng nhập lại để tiếp tục xem và quản lý công việc.
-                </p>
               </div>
 
               {/* Thông tin tài khoản hiện tại */}
-              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#e8eaed] bg-[#f8fafd] px-4 py-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]">
+              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#f0e4d2] bg-[#fffaf2] px-4 py-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-semibold text-white">
                   {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[#202124]">
+                  <p className="truncate text-sm font-semibold text-[#263b33]">
                     {currentUser?.fullName ?? "Tài khoản"}
                   </p>
-                  <p className="truncate text-xs text-[#70757a]">
+                  <p className="truncate text-xs text-[#78867f]">
                     {currentUser
                       ? `${currentUser.employeeId} · ${currentUser.jobTitle}`
                       : "Daily Task Manager"}
@@ -1150,7 +1154,7 @@ export default function Home() {
               {logoutError && (
                 <div
                   role="alert"
-                  className="mt-4 flex items-start gap-2 rounded-xl border border-[#f4c7c3] bg-[#fce8e6] px-3.5 py-2.5 text-sm text-[#b3261e]"
+                  className="mt-4 flex items-start gap-2 rounded-xl border border-[#f2c6bd] bg-[#fff0ed] px-3.5 py-2.5 text-sm text-[#b4231e]"
                 >
                   <span className="mt-0.5 shrink-0">
                     <Icon name="close" size={16} />
@@ -1170,7 +1174,7 @@ export default function Home() {
                   setShowLogoutConfirm(false);
                   setLogoutError("");
                 }}
-                className="inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-medium text-[#1a73e8] transition-colors hover:bg-[#f1f3f4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a73e8]/40 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-[#008061] transition-colors hover:bg-[#e8f4ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Hủy
               </button>
@@ -1179,7 +1183,7 @@ export default function Home() {
                 type="button"
                 disabled={loggingOut}
                 onClick={handleLogout}
-                className="inline-flex h-11 min-w-[128px] items-center justify-center gap-2 rounded-full bg-[#d93025] px-6 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#c5221f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d93025]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex h-11 min-w-[128px] items-center justify-center gap-2 rounded-xl bg-[#EE2A24] px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#cf211c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE2A24]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loggingOut ? (
                   <>
@@ -1200,7 +1204,7 @@ export default function Home() {
 
       {showCreate && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-[#202124]/40 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-[#173b2e]/40 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setShowCreate(false);
           }}
@@ -1209,17 +1213,17 @@ export default function Home() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-task-title"
-            className="my-auto w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl sm:p-7"
+            className="my-auto w-full max-w-lg rounded-[28px] border border-[#f0e4d2] bg-white p-5 shadow-[0_30px_80px_rgba(32,61,48,0.24)] sm:p-7"
           >
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2
                   id="create-task-title"
-                  className="text-xl font-normal text-[#202124]"
+                  className="text-xl font-extrabold text-[#263b33]"
                 >
                   Tạo công việc
                 </h2>
-                <p className="mt-2 text-sm text-[#5f6368]">
+                <p className="mt-2 text-sm text-[#64736c]">
                   Thêm công việc mới vào lịch của đội.
                 </p>
               </div>
@@ -1227,7 +1231,7 @@ export default function Home() {
                 type="button"
                 onClick={() => setShowCreate(false)}
                 aria-label="Đóng cửa sổ"
-                className="rounded-full p-2 text-[#5f6368] hover:bg-[#f1f3f4]"
+                className="rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb]"
               >
                 <Icon name="close" />
               </button>
@@ -1237,7 +1241,7 @@ export default function Home() {
               <div>
                 <label
                   htmlFor="task-title"
-                  className="mb-1.5 block text-sm font-medium text-[#3c4043]"
+                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
                 >
                   Tên công việc <span className="text-red-500">*</span>
                 </label>
@@ -1248,14 +1252,14 @@ export default function Home() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Ví dụ: Kiểm tra tồn kho"
-                  className="w-full rounded-lg border border-[#dadce0] px-3.5 py-3 text-sm outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
+                  className="w-full rounded-xl border border-[#e8dfd0] px-3.5 py-3 text-sm outline-none transition focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="task-description"
-                  className="mb-1.5 block text-sm font-medium text-[#3c4043]"
+                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
                 >
                   Mô tả (không bắt buộc)
                 </label>
@@ -1266,14 +1270,14 @@ export default function Home() {
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Thêm ghi chú cho công việc..."
-                  className="w-full resize-y rounded-lg border border-[#dadce0] px-3.5 py-3 text-sm outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
+                  className="w-full resize-y rounded-xl border border-[#e8dfd0] px-3.5 py-3 text-sm outline-none transition focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="task-date"
-                  className="mb-1.5 block text-sm font-medium text-[#3c4043]"
+                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
                 >
                   Ngày thực hiện
                 </label>
@@ -1283,14 +1287,14 @@ export default function Home() {
                   type="date"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full min-w-0 rounded-lg border border-[#dadce0] bg-white px-3 py-3 text-sm outline-none focus:border-[#1a73e8]"
+                  className="w-full min-w-0 rounded-xl border border-[#e8dfd0] bg-white px-3 py-3 text-sm outline-none focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="task-status"
-                  className="mb-1.5 block text-sm font-medium text-[#3c4043]"
+                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
                 >
                   Trạng thái
                 </label>
@@ -1298,7 +1302,7 @@ export default function Home() {
                   id="task-status"
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as TaskStatus)}
-                  className="w-full rounded-lg border border-[#dadce0] bg-white px-3 py-3 text-sm outline-none focus:border-[#1a73e8]"
+                  className="w-full rounded-xl border border-[#e8dfd0] bg-white px-3 py-3 text-sm outline-none focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
                 >
                   <option value="Chưa hoàn thành">Chưa hoàn thành</option>
                   <option value="Hoàn thành">Hoàn thành</option>
@@ -1309,14 +1313,14 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="rounded-full px-5 py-2.5 text-sm font-medium text-[#1a73e8] hover:bg-[#f1f3f4]"
+                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-[#008061] hover:bg-[#e8f4ef]"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={savingTask}
-                  className="rounded-full bg-[#1a73e8] px-6 py-2.5 text-sm font-medium text-white hover:bg-[#1765cc] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full bg-[#008061] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {savingTask ? "Đang lưu..." : "Lưu công việc"}
                 </button>
