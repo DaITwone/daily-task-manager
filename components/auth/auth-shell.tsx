@@ -268,7 +268,7 @@ export function AuthShell({ children, mode }: AuthShellProps) {
             <p
               className={`text-center text-xs text-slate-400 ${isLogin ? "mt-8" : "mt-5"}`}
             >
-              © {new Date().getFullYear()} Daily Task Manager
+              © Daily Task Manager
             </p>
           </div>
         </section>

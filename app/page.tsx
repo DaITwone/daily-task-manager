@@ -273,9 +273,15 @@ export default function Home() {
 
   const [view, setView] = useState<View>("month");
 
-  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [currentDate, setCurrentDate] = useState(
+    () => new Date(2000, 0, 1),
+  );
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(
+    () => new Date(2000, 0, 1),
+  );
+
+  const [todayDate, setTodayDate] = useState(() => new Date(2000, 0, 1));
 
   const [tasks, setTasks] = useState<Task[]>([]);
 
@@ -335,9 +341,17 @@ export default function Home() {
 
   const [newDescription, setNewDescription] = useState("");
 
-  const [newDate, setNewDate] = useState(() => isoDate(new Date()));
+  const [newDate, setNewDate] = useState("2000-01-01");
 
   const [newStatus, setNewStatus] = useState<TaskStatus>("Chưa hoàn thành");
+
+  useEffect(() => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+    setTodayDate(today);
+    setNewDate(isoDate(today));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1276,14 +1290,14 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                 </span>
               ))}
               {monthDays.map((date) => {
-                const today = isoDate(date) === isoDate(new Date());
+                const today = isoDate(date) === isoDate(todayDate);
                 const sameDisplayedMonth =
                   date.getMonth() === currentDate.getMonth() &&
                   date.getFullYear() === currentDate.getFullYear();
                 const selected =
                   sameDisplayedMonth && isoDate(date) === isoDate(selectedDate);
                 const todayInDisplayedMonth =
-                  sameDisplayedMonth && isoDate(date) === isoDate(new Date());
+                  sameDisplayedMonth && isoDate(date) === isoDate(todayDate);
                 return (
                   <button
                     key={isoDate(date)}
@@ -1577,7 +1591,7 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
 
                     const outside = date.getMonth() !== currentDate.getMonth();
 
-                    const today = isoDate(date) === isoDate(new Date());
+                    const today = isoDate(date) === isoDate(todayDate);
 
                     const selected = isoDate(date) === isoDate(selectedDate);
 
@@ -1695,7 +1709,7 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
                           {shortWeekday(date)}
                         </span>
                         <span
-                          className={`mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg ${isoDate(date) === isoDate(new Date()) ? "bg-[#008061] font-semibold text-white" : "text-[#43564d]"}`}
+                          className={`mt-1 flex h-9 w-9 items-center justify-center rounded-full text-lg ${isoDate(date) === isoDate(todayDate) ? "bg-[#008061] font-semibold text-white" : "text-[#43564d]"}`}
                         >
                           {date.getDate()}
                         </span>
@@ -1747,7 +1761,7 @@ tbody tr:nth-child(even) { background:#f8fbf9; }
               <div className="overflow-hidden rounded-[24px] border border-[#eadfce] bg-white shadow-[0_12px_35px_rgba(72,61,43,0.08)]">
                 <div className="flex items-center gap-4 border-b border-[#f0e8dc] bg-[#fffaf2] px-5 py-4">
                   <span
-                    className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold ${isoDate(selectedDate) === isoDate(new Date()) ? "bg-[#008061] text-white" : "bg-[#f4eadb] text-[#43564d]"}`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-semibold ${isoDate(selectedDate) === isoDate(todayDate) ? "bg-[#008061] text-white" : "bg-[#f4eadb] text-[#43564d]"}`}
                   >
                     {selectedDate.getDate()}
                   </span>
