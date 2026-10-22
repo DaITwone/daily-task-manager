@@ -698,16 +698,6 @@ export default function Home() {
     }
   }
 
-  if (checkingSession)
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FFF8EC] text-[#52615b]">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#008061] border-t-transparent" />
-          Đang kiểm tra phiên đăng nhập...
-        </div>
-      </main>
-    );
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#FFF8EC] text-[#263b33]">
       <div
@@ -1197,7 +1187,15 @@ export default function Home() {
                   </button>
                 </div>
 
-                {tasksForDate(selectedDate).length === 0 ? (
+                {loadingTasks ? (
+                  <div
+                    role="status"
+                    className="flex items-center justify-center gap-2 px-4 py-16 text-sm text-[#78867f]"
+                  >
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#008061]/30 border-t-[#008061]" />
+                    Đang tải công việc...
+                  </div>
+                ) : tasksForDate(selectedDate).length === 0 ? (
                   <div className="px-4 py-16 text-center">
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e8f4ef] text-[#008061]">
                       <Icon name="calendar" size={22} />
@@ -1441,7 +1439,7 @@ export default function Home() {
             {/* Hình khối trang trí */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute -right-12 -top-14 h-44 w-44 rounded-full bg-[#F47B20]/90"
+              className="pointer-events-none absolute -right-12 -top-14 h-48 w-48 rounded-full bg-[#F47B20]/90"
             />
             <div
               aria-hidden="true"
