@@ -1078,7 +1078,7 @@ export default function Home() {
                                 onDoubleClick={(event) =>
                                   event.stopPropagation()
                                 }
-                                className={`block w-full truncate rounded-sm border-l-2 px-1 py-1 text-left text-[9px] leading-tight sm:px-1.5 sm:text-[11px] ${taskTone[task.color]}`}
+                                className={`block w-full truncate rounded-md px-1.5 py-1 text-left text-[9px] font-semibold leading-tight transition-opacity hover:opacity-80 sm:px-2 sm:text-[11px] ${taskTone[task.color]}`}
                               >
                                 {task.title}
                               </button>
@@ -1086,7 +1086,7 @@ export default function Home() {
                               <span
                                 key={task.id}
                                 title={`${task.title} · ${task.owner}`}
-                                className={`block truncate rounded-sm border-l-2 px-1 py-1 text-left text-[9px] leading-tight sm:px-1.5 sm:text-[11px] ${taskTone[task.color]}`}
+                                className={`block truncate rounded-md px-1.5 py-1 text-left text-[9px] font-medium leading-tight opacity-80 sm:px-2 sm:text-[11px] ${taskTone[task.color]}`}
                               >
                                 {task.title}
                               </span>
@@ -1140,18 +1140,15 @@ export default function Home() {
                                 startEditingTask(task);
                               }
                             }}
-                            className={`w-full rounded border-l-2 p-1.5 text-left text-[11px] ${taskTone[task.color]}`}
+                            className={`w-full rounded-md px-2 py-1.5 text-left text-[11px] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 ${taskTone[task.color]}`}
                             title={
                               task.ownerId === currentUser?.id
                                 ? "Chọn để sửa công việc"
                                 : `${task.title} · ${task.owner}`
                             }
                           >
-                            <span className="block font-medium">
+                            <span className="block font-semibold">
                               {task.title}
-                            </span>
-                            <span className="mt-1 block truncate opacity-80">
-                              {task.owner}
                             </span>
                           </button>
                         ))}
