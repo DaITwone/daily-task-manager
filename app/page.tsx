@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 type View = "day" | "week" | "month";
+type CalendarMode = "personal" | "team";
 
 type TaskColor = "green" | "orange" | "red";
 
@@ -26,6 +27,11 @@ type CurrentUser = {
   email: string;
   jobTitle: string;
 };
+
+type TeamMember = Pick<
+  CurrentUser,
+  "id" | "employeeId" | "fullName" | "jobTitle"
+>;
 
 type Task = {
   id: string;
@@ -174,6 +180,21 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" />
       </>
     ),
+    user: (
+  <>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+  </>
+),
+
+users: (
+  <>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="10" cy="7" r="4" />
+    <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </>
+),
   };
 
   return <svg {...common}>{paths[name] ?? paths.calendar}</svg>;
@@ -252,6 +273,22 @@ export default function Home() {
 
   const [search, setSearch] = useState("");
 
+  const [calendarUserFilterId, setCalendarUserFilterId] = useState<
+    string | null
+  >(null);
+
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>("team");
+
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  const [teamMembersLoaded, setTeamMembersLoaded] = useState(false);
+
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
+
+  const [teamMembersError, setTeamMembersError] = useState("");
+
+  const [showTeamMembers, setShowTeamMembers] = useState(false);
+
   const [checkingSession, setCheckingSession] = useState(true);
 
   const [loggingOut, setLoggingOut] = useState(false);
@@ -316,7 +353,12 @@ export default function Home() {
         const params = new URLSearchParams({
           view,
           date: isoDate(dateForRequest),
+          scope: calendarMode,
         });
+
+        if (calendarMode === "team" && calendarUserFilterId) {
+          params.set("userId", calendarUserFilterId);
+        }
 
         const response = await fetch(`/api/tasks?${params.toString()}`, {
           credentials: "same-origin",
@@ -384,7 +426,14 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [view, currentDate.getTime(), selectedDate.getTime(), router]);
+  }, [
+    view,
+    currentDate.getTime(),
+    selectedDate.getTime(),
+    calendarMode,
+    calendarUserFilterId,
+    router,
+  ]);
 
   // Đóng modal xác nhận đăng xuất bằng phím Esc.
   useEffect(() => {
@@ -438,7 +487,17 @@ export default function Home() {
     return monthDays;
   }, [view, selectedDate, weekStart.getTime(), currentDate.getTime()]);
 
-  const filteredTasks = tasks.filter((task) => {
+  const canManageTasks = calendarMode === "personal";
+
+  const calendarTasks = tasks.filter((task) =>
+    calendarMode === "personal"
+      ? task.ownerId === currentUser?.id
+      : Boolean(currentUser) &&
+        task.ownerId !== currentUser?.id &&
+        (!calendarUserFilterId || task.ownerId === calendarUserFilterId),
+  );
+
+  const filteredTasks = calendarTasks.filter((task) => {
     const q = search.trim().toLocaleLowerCase("vi");
 
     return (
@@ -453,13 +512,13 @@ export default function Home() {
   const tasksForDate = (date: Date) =>
     filteredTasks.filter((task) => task.date === isoDate(date));
 
-  const totalTasks = tasks.length;
+  const totalTasks = calendarTasks.length;
 
-  const unfinishedTasks = tasks.filter(
+  const unfinishedTasks = calendarTasks.filter(
     (task) => task.status === "Chưa hoàn thành",
   ).length;
 
-  const completedTasks = tasks.filter(
+  const completedTasks = calendarTasks.filter(
     (task) => task.status === "Hoàn thành",
   ).length;
 
@@ -500,6 +559,46 @@ export default function Home() {
     setCurrentDate(today);
   }
 
+  async function loadTeamMembers() {
+    if (teamMembersLoaded || loadingTeamMembers) return;
+
+    setLoadingTeamMembers(true);
+    setTeamMembersError("");
+
+    try {
+      const response = await fetch("/api/team-members", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = await response.json();
+
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      if (!response.ok)
+        throw new Error(data.message || "Không thể tải danh sách nhân viên.");
+
+      setTeamMembers(data.users as TeamMember[]);
+      setTeamMembersLoaded(true);
+    } catch (error) {
+      setTeamMembersError(
+        error instanceof Error
+          ? error.message
+          : "Không thể tải danh sách nhân viên.",
+      );
+    } finally {
+      setLoadingTeamMembers(false);
+    }
+  }
+
+  function toggleTeamMemberPicker() {
+    setShowTeamMembers(true);
+    setSidebarOpen(false);
+    void loadTeamMembers();
+  }
+
   async function handleLogout() {
     if (loggingOut) return;
 
@@ -526,7 +625,7 @@ export default function Home() {
   }
 
   function startEditingTask(task: Task) {
-    if (task.ownerId !== currentUser?.id) return;
+    if (!canManageTasks || task.ownerId !== currentUser?.id) return;
 
     setEditingTask(task);
     setNewTitle(task.title);
@@ -538,6 +637,8 @@ export default function Home() {
   }
 
   function confirmDeleteTask(task: Task) {
+    if (!canManageTasks || task.ownerId !== currentUser?.id) return;
+
     setTaskError("");
     setDeletingTask(task);
   }
@@ -554,7 +655,7 @@ export default function Home() {
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!newTitle.trim() || !newDate || savingTask) return;
+    if (!canManageTasks || !newTitle.trim() || !newDate || savingTask) return;
 
     const taskBeingEdited = editingTask;
     const submittedDate = newDate;
@@ -648,6 +749,7 @@ export default function Home() {
       const params = new URLSearchParams({
         view: "month",
         date: submittedDate,
+        scope: "personal",
       });
 
       const refreshResponse = await fetch(`/api/tasks?${params.toString()}`, {
@@ -700,7 +802,13 @@ export default function Home() {
   }
 
   async function handleDeleteTask() {
-    if (!deletingTask || deletingTaskBusy) return;
+    if (
+      !canManageTasks ||
+      !deletingTask ||
+      deletingTaskBusy ||
+      deletingTask.ownerId !== currentUser?.id
+    )
+      return;
 
     setDeletingTaskBusy(true);
     setTaskError("");
@@ -735,7 +843,12 @@ export default function Home() {
   }
 
   async function handleToggleTaskStatus(task: Task) {
-    if (task.ownerId !== currentUser?.id || updatingTaskStatusId) return;
+    if (
+      !canManageTasks ||
+      task.ownerId !== currentUser?.id ||
+      updatingTaskStatusId
+    )
+      return;
 
     const nextStatus: TaskStatus =
       task.status === "Hoàn thành" ? "Chưa hoàn thành" : "Hoàn thành";
@@ -842,16 +955,18 @@ export default function Home() {
               <p className="text-[11px] text-[#78867f]">Checklist công việc</p>
             </div>
           </div>
-          <button
-            title="Tạo công việc"
-            aria-label="Tạo công việc"
-            onClick={() => setShowCreate(true)}
-            className="mb-7 flex h-12 w-fit items-center gap-3 rounded-2xl bg-white px-5 text-sm font-semibold text-[#263b33] shadow-[0_8px_20px_rgba(0,96,65,0.12)] ring-1 ring-[#e8dfd0] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,96,65,0.16)]"
-          >
-            <span className="text-[#F47B20]">
-              <Icon name="plus" size={23} />
-            </span>
-          </button>
+          {canManageTasks && (
+            <button
+              title="Tạo công việc"
+              aria-label="Tạo công việc"
+              onClick={() => setShowCreate(true)}
+              className="mb-7 flex h-12 w-fit items-center gap-3 rounded-2xl bg-white px-5 text-sm font-semibold text-[#263b33] shadow-[0_8px_20px_rgba(0,96,65,0.12)] ring-1 ring-[#e8dfd0] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,96,65,0.16)]"
+            >
+              <span className="text-[#F47B20]">
+                <Icon name="plus" size={23} />
+              </span>
+            </button>
+          )}
 
           <div className="mb-5 px-2">
             <div className="mb-3 flex items-center justify-between">
@@ -908,24 +1023,43 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-[#f0e4d2] pt-5">
-            <p className="mb-3 px-2 text-xs font-semibold text-[#78867f]">
-              Lịch của bạn
-            </p>
-            <button
-              title="Công việc cá nhân"
-              className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-[#f4eadb]"
-            >
-              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#F47B20]" />
-              Công việc cá nhân
-            </button>
-            <button
-              title="Lịch nhóm"
-              className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-[#f4eadb]"
-            >
-              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#008061]" />
-              Lịch nhóm
-            </button>
-          </div>
+  <p className="mb-3 px-2 text-xs font-semibold text-[#78867f]">
+    Lịch của bạn
+  </p>
+
+  <button
+    type="button"
+    title="Lịch cá nhân"
+    onClick={() => {
+      setCalendarMode("personal");
+      if (currentUser) setCalendarUserFilterId(currentUser.id);
+      setShowTeamMembers(false);
+      setSidebarOpen(false);
+    }}
+    className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm transition ${
+      calendarMode === "personal"
+        ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
+        : "text-[#263b33] hover:bg-[#f4eadb]"
+    }`}
+  >
+    <Icon name="user" size={17} />
+    <span>Lịch của tôi</span>
+  </button>
+
+  <button
+    type="button"
+    title="Lịch nhóm"
+    onClick={toggleTeamMemberPicker}
+    className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm transition ${
+      calendarMode === "team"
+        ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
+        : "text-[#263b33] hover:bg-[#f4eadb]"
+    }`}
+  >
+    <Icon name="users" size={17} />
+    <span className="flex-1">Lịch nhóm</span>
+  </button>
+</div>
           <div className="mt-auto border-t border-[#f0e4d2] pt-4">
             <div className="flex items-center gap-3 px-2">
               <span
@@ -1084,12 +1218,14 @@ export default function Home() {
               <span className="text-sm font-medium capitalize">
                 {monthLabel(currentDate)}
               </span>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="ml-auto flex items-center gap-1 rounded-full bg-[#008061] px-3 py-2 text-xs font-semibold text-white shadow-sm"
-              >
-                <Icon name="plus" size={16} /> Tạo
-              </button>
+              {canManageTasks && (
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="ml-auto flex items-center gap-1 rounded-full bg-[#008061] px-3 py-2 text-xs font-semibold text-white shadow-sm"
+                >
+                  <Icon name="plus" size={16} /> Tạo
+                </button>
+              )}
             </div>
 
             {taskError && (
@@ -1137,13 +1273,18 @@ export default function Home() {
                         key={isoDate(date)}
                         onClick={() => setSelectedDate(new Date(date))}
                         onDoubleClick={() => {
+                          if (!canManageTasks) return;
                           setSelectedDate(new Date(date));
                           setCurrentDate(new Date(date));
                           setNewDate(isoDate(date));
                           setEditingTask(null);
                           setShowCreate(true);
                         }}
-                        title="Nhấn đúp để tạo công việc"
+                        title={
+                          canManageTasks
+                            ? "Nhấn đúp để tạo công việc"
+                            : undefined
+                        }
                         className={`group flex min-h-[92px] min-w-0 flex-col border-b border-r border-[#f0e8dc] p-1 text-left transition last:border-r-0 hover:bg-[#fffaf2] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f1f8f4]" : "bg-white"}`}
                       >
                         <button
@@ -1162,7 +1303,8 @@ export default function Home() {
                               title={`${task.title} · ${task.owner}`}
                               className={`flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 sm:px-2 ${taskTone[task.color]}`}
                             >
-                              {task.ownerId === currentUser?.id ? (
+                              {canManageTasks &&
+                              task.ownerId === currentUser?.id ? (
                                 <button
                                   type="button"
                                   onClick={(event) => {
@@ -1181,7 +1323,8 @@ export default function Home() {
                                   {task.title}
                                 </span>
                               )}
-                              {task.ownerId === currentUser?.id && (
+                              {canManageTasks &&
+                                task.ownerId === currentUser?.id && (
                                 <TaskStatusToggle
                                   task={task}
                                   busy={updatingTaskStatusId !== null}
@@ -1265,7 +1408,8 @@ export default function Home() {
                             >
                               {task.title}
                             </button>
-                            {task.ownerId === currentUser?.id && (
+                            {canManageTasks &&
+                              task.ownerId === currentUser?.id && (
                               <TaskStatusToggle
                                 task={task}
                                 busy={updatingTaskStatusId !== null}
@@ -1300,13 +1444,15 @@ export default function Home() {
                       {tasksForDate(selectedDate).length} công việc
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowCreate(true)}
-                    className="ml-auto flex items-center gap-2 rounded-full bg-[#008061] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51]"
-                  >
-                    <Icon name="plus" size={18} />
-                    Tạo công việc
-                  </button>
+                  {canManageTasks && (
+                    <button
+                      onClick={() => setShowCreate(true)}
+                      className="ml-auto flex items-center gap-2 rounded-full bg-[#008061] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51]"
+                    >
+                      <Icon name="plus" size={18} />
+                      Tạo công việc
+                    </button>
+                  )}
                 </div>
 
                 {loadingTasks ? (
@@ -1325,12 +1471,14 @@ export default function Home() {
                     <p className="text-sm text-[#52615b]">
                       Ngày này chưa có công việc
                     </p>
-                    <button
-                      onClick={() => setShowCreate(true)}
-                      className="mt-4 rounded-full border border-[#008061]/30 px-4 py-2 text-sm font-semibold text-[#008061] transition hover:bg-[#e8f4ef]"
-                    >
-                      + Tạo công việc
-                    </button>
+                    {canManageTasks && (
+                      <button
+                        onClick={() => setShowCreate(true)}
+                        className="mt-4 rounded-full border border-[#008061]/30 px-4 py-2 text-sm font-semibold text-[#008061] transition hover:bg-[#e8f4ef]"
+                      >
+                        + Tạo công việc
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="divide-y divide-[#f0e8dc]">
@@ -1350,7 +1498,8 @@ export default function Home() {
                             </p>
                           )}
                         </div>
-                        {task.ownerId === currentUser?.id && (
+                        {canManageTasks &&
+                          task.ownerId === currentUser?.id && (
                           <div className="flex shrink-0 items-center gap-1.5">
                             <button
                               type="button"
@@ -1427,6 +1576,127 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      {showTeamMembers && (
+        <div
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-[#0b3d2e]/55 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowTeamMembers(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-calendar-title"
+            className="relative w-full max-w-md overflow-hidden rounded-[28px] bg-white p-6 shadow-[0_30px_90px_rgba(0,128,97,0.28)] sm:p-8"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <span className="mb-4 flex h-1.5 w-14 overflow-hidden">
+                  <span className="flex-1 bg-[#F47B20]" />
+                  <span className="flex-1 bg-[#008061]" />
+                  <span className="flex-1 bg-[#EE2A24]" />
+                </span>
+                <h2
+                  id="team-calendar-title"
+                  className="text-2xl font-extrabold tracking-tight text-[#14261f]"
+                >
+                  Chọn lịch để xem
+                </h2>
+                <p className="mt-2 text-sm text-[#64736c]">
+                  Lịch nhóm chỉ dùng để xem, không thể chỉnh sửa công việc.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTeamMembers(false)}
+                aria-label="Đóng"
+                className="rounded-xl p-2 text-[#52615b] transition hover:bg-[#f4eadb]"
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+
+            {teamMembersError && (
+              <div
+                role="alert"
+                className="mb-3 rounded-xl border border-[#f2c6bd] bg-[#fff0ed] px-3 py-2 text-sm text-[#b4231e]"
+              >
+                {teamMembersError}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeamMembersLoaded(false);
+                    setTeamMembersError("");
+                    void loadTeamMembers();
+                  }}
+                  className="ml-2 font-semibold underline"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+
+            <div className="max-h-[min(55vh,420px)] space-y-1 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setCalendarMode("team");
+                  setCalendarUserFilterId(null);
+                  setShowTeamMembers(false);
+                }}
+                className={`w-full rounded-xl px-3 py-3 text-left text-sm transition ${
+                  calendarMode === "team" && calendarUserFilterId === null
+                    ? "bg-[#e8f4ef] font-semibold text-[#006b51]"
+                    : "text-[#43564d] hover:bg-[#fffaf2]"
+                }`}
+              >
+                Tất cả lịch nhóm
+              </button>
+
+              {loadingTeamMembers ? (
+                <div
+                  role="status"
+                  className="flex items-center justify-center gap-2 py-8 text-sm text-[#78867f]"
+                >
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#008061]/30 border-t-[#008061]" />
+                  Đang tải nhân viên...
+                </div>
+              ) : (
+                teamMembers.map((member) => (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => {
+                      setCalendarMode("team");
+                      setCalendarUserFilterId(member.id);
+                      setShowTeamMembers(false);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+                      calendarMode === "team" &&
+                      calendarUserFilterId === member.id
+                        ? "bg-[#e8f4ef] text-[#006b51]"
+                        : "text-[#43564d] hover:bg-[#fffaf2]"
+                    }`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-bold text-white">
+                      {member.fullName.trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">
+                        {member.fullName}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-[#89948e]">
+                        {member.employeeId} · {member.jobTitle}
+                      </span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {showLogoutConfirm && (
         <div

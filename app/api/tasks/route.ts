@@ -86,10 +86,40 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const view = url.searchParams.get("view") ?? "month";
     const dateString = url.searchParams.get("date");
+    const scope = url.searchParams.get("scope") ?? "team";
+    const requestedUserId = url.searchParams.get("userId");
 
     if (!["day", "week", "month"].includes(view)) {
       return NextResponse.json(
         { message: "view phải là day, week hoặc month." },
+        { status: 400 },
+      );
+    }
+
+    if (!["personal", "team"].includes(scope)) {
+      return NextResponse.json(
+        { message: "scope phải là personal hoặc team." },
+        { status: 400 },
+      );
+    }
+
+    if (requestedUserId && !z.string().uuid().safeParse(requestedUserId).success) {
+      return NextResponse.json(
+        { message: "Mã nhân viên không hợp lệ." },
+        { status: 400 },
+      );
+    }
+
+    if (scope === "personal" && requestedUserId) {
+      return NextResponse.json(
+        { message: "Không thể chọn nhân viên khi xem lịch cá nhân." },
+        { status: 400 },
+      );
+    }
+
+    if (scope === "team" && requestedUserId === session.userId) {
+      return NextResponse.json(
+        { message: "Lịch nhóm không bao gồm tài khoản hiện tại." },
         { status: 400 },
       );
     }
@@ -119,6 +149,12 @@ export async function GET(request: Request) {
       }),
       prisma.task.findMany({
         where: {
+          userId:
+            scope === "personal"
+              ? session.userId
+              : requestedUserId
+                ? requestedUserId
+                : { not: session.userId },
           taskDate: {
             gte: start,
             lt: end,
