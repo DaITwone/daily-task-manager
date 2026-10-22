@@ -302,7 +302,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex flex-1 items-center justify-center rounded-full bg-[#008061] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#008061]/20 transition hover:bg-[#006b50] focus:outline-none focus:ring-4 focus:ring-[#F47B20]/30 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex flex-1 items-center justify-center rounded-xl bg-[#008061] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#008061]/20 transition hover:bg-[#006b50] focus:outline-none focus:ring-4 focus:ring-[#F47B20]/30 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLastStep
               ? loading

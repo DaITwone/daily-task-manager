@@ -30,6 +30,8 @@ type CurrentUser = {
 type Task = {
   id: string;
 
+  ownerId: string;
+
   title: string;
 
   description?: string | null;
@@ -162,6 +164,16 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <path d="m18 6-12 12M6 6l12 12" />
       </>
     ),
+    edit: (
+      <>
+        <path d="m16 4 4 4M4 20l4-.8L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" />
+      </>
+    ),
+    trash: (
+      <>
+        <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" />
+      </>
+    ),
   };
 
   return <svg {...common}>{paths[name] ?? paths.calendar}</svg>;
@@ -187,6 +199,12 @@ export default function Home() {
   const [savingTask, setSavingTask] = useState(false);
 
   const [showCreate, setShowCreate] = useState(false);
+
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+
+  const [deletingTaskBusy, setDeletingTaskBusy] = useState(false);
 
   const [search, setSearch] = useState("");
 
@@ -277,6 +295,7 @@ export default function Home() {
         const mapped: Task[] = (data.tasks ?? []).map(
           (item: {
             id: string;
+            userId: string;
             title: string;
             description?: string | null;
             taskDate: string;
@@ -285,6 +304,8 @@ export default function Home() {
             user: { employeeId: string; fullName: string; jobTitle: string };
           }) => ({
             id: item.id,
+
+            ownerId: item.userId,
 
             title: item.title,
 
@@ -468,11 +489,39 @@ export default function Home() {
     }
   }
 
+  function startEditingTask(task: Task) {
+    if (task.ownerId !== currentUser?.id) return;
+
+    setEditingTask(task);
+    setNewTitle(task.title);
+    setNewDescription(task.description ?? "");
+    setNewDate(task.date);
+    setNewStatus(task.status);
+    setTaskError("");
+    setShowCreate(true);
+  }
+
+  function confirmDeleteTask(task: Task) {
+    setTaskError("");
+    setDeletingTask(task);
+  }
+
+  function closeTaskForm() {
+    setShowCreate(false);
+    setEditingTask(null);
+    setNewTitle("");
+    setNewDescription("");
+    setNewDate(isoDate(new Date()));
+    setNewStatus("Chưa hoàn thành");
+  }
+
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!newTitle.trim() || !newDate || savingTask) return;
 
+    const taskBeingEdited = editingTask;
+    const submittedDate = newDate;
     setSavingTask(true);
 
     setTaskError("");
@@ -481,20 +530,23 @@ export default function Home() {
       newStatus === "Hoàn thành" ? "COMPLETED" : "TODO";
 
     try {
-      const response = await fetch("/api/tasks", {
-        method: "POST",
+      const response = await fetch(
+        taskBeingEdited ? `/api/tasks/${taskBeingEdited.id}` : "/api/tasks",
+        {
+          method: taskBeingEdited ? "PUT" : "POST",
 
-        credentials: "same-origin",
+          credentials: "same-origin",
 
-        headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
 
-        body: JSON.stringify({
-          title: newTitle.trim(),
-          description: newDescription.trim(),
-          taskDate: newDate,
-          status,
-        }),
-      });
+          body: JSON.stringify({
+            title: newTitle.trim(),
+            description: newDescription.trim(),
+            taskDate: submittedDate,
+            status,
+          }),
+        },
+      );
 
       const data = await response.json();
 
@@ -504,9 +556,14 @@ export default function Home() {
       }
 
       if (!response.ok)
-        throw new Error(data.message || "Không thể tạo công việc.");
+        throw new Error(
+          data.message ||
+            (taskBeingEdited
+              ? "Không thể cập nhật công việc."
+              : "Không thể tạo công việc."),
+        );
 
-      const date = new Date(`${newDate}T12:00:00`);
+      const date = new Date(`${submittedDate}T12:00:00`);
 
       setSelectedDate(date);
 
@@ -514,17 +571,48 @@ export default function Home() {
 
       setView("month");
 
-      setNewTitle("");
+      if (taskBeingEdited) {
+        const updatedTask = data.task as {
+          id: string;
+          userId: string;
+          title: string;
+          description?: string | null;
+          taskDate: string;
+          status: ApiTaskStatus;
+          user: { employeeId: string; fullName: string; jobTitle: string };
+        };
 
-      setNewDescription("");
+        const mappedTask: Task = {
+          id: updatedTask.id,
+          ownerId: updatedTask.userId,
+          title: updatedTask.title,
+          description: updatedTask.description,
+          owner: updatedTask.user.fullName,
+          employeeId: updatedTask.user.employeeId,
+          role: updatedTask.user.jobTitle,
+          date: String(updatedTask.taskDate).slice(0, 10),
+          status:
+            updatedTask.status === "COMPLETED"
+              ? "Hoàn thành"
+              : "Chưa hoàn thành",
+          color: updatedTask.status === "COMPLETED" ? "green" : "orange",
+        };
 
-      setNewDate(isoDate(new Date()));
+        setTasks((current) =>
+          current.map((task) =>
+            task.id === mappedTask.id ? mappedTask : task,
+          ),
+        );
+        closeTaskForm();
+        return;
+      }
 
-      setNewStatus("Chưa hoàn thành");
+      closeTaskForm();
 
-      setShowCreate(false);
-
-      const params = new URLSearchParams({ view: "month", date: newDate });
+      const params = new URLSearchParams({
+        view: "month",
+        date: submittedDate,
+      });
 
       const refreshResponse = await fetch(`/api/tasks?${params.toString()}`, {
         credentials: "same-origin",
@@ -538,6 +626,7 @@ export default function Home() {
           (refreshData.tasks ?? []).map(
             (item: {
               id: string;
+              userId: string;
               title: string;
               description?: string | null;
               taskDate: string;
@@ -545,6 +634,7 @@ export default function Home() {
               user: { employeeId: string; fullName: string; jobTitle: string };
             }) => ({
               id: item.id,
+              ownerId: item.userId,
               title: item.title,
               description: item.description,
               owner: item.user.fullName,
@@ -562,10 +652,49 @@ export default function Home() {
       }
     } catch (error) {
       setTaskError(
-        error instanceof Error ? error.message : "Không thể tạo công việc.",
+        error instanceof Error
+          ? error.message
+          : taskBeingEdited
+            ? "Không thể cập nhật công việc."
+            : "Không thể tạo công việc.",
       );
     } finally {
       setSavingTask(false);
+    }
+  }
+
+  async function handleDeleteTask() {
+    if (!deletingTask || deletingTaskBusy) return;
+
+    setDeletingTaskBusy(true);
+    setTaskError("");
+
+    try {
+      const response = await fetch(`/api/tasks/${deletingTask.id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      const data = await response.json();
+
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      if (!response.ok)
+        throw new Error(data.message || "Không thể xóa công việc.");
+
+      setTasks((current) =>
+        current.filter((task) => task.id !== deletingTask.id),
+      );
+      if (editingTask?.id === deletingTask.id) closeTaskForm();
+      setDeletingTask(null);
+    } catch (error) {
+      setTaskError(
+        error instanceof Error ? error.message : "Không thể xóa công việc.",
+      );
+    } finally {
+      setDeletingTaskBusy(false);
     }
   }
 
@@ -641,7 +770,6 @@ export default function Home() {
             <span className="text-[#F47B20]">
               <Icon name="plus" size={23} />
             </span>
-            Tạo công việc
           </button>
 
           <div className="mb-5 px-2">
@@ -924,36 +1052,56 @@ export default function Home() {
                     const selected = isoDate(date) === isoDate(selectedDate);
 
                     return (
-                      <button
+                      <div
                         key={isoDate(date)}
-                        onClick={() => {
-                          setSelectedDate(new Date(date));
-                        }}
+                        onClick={() => setSelectedDate(new Date(date))}
                         onDoubleClick={() => {
                           setSelectedDate(new Date(date));
                           setCurrentDate(new Date(date));
                           setNewDate(isoDate(date));
+                          setEditingTask(null);
                           setShowCreate(true);
                         }}
                         title="Nhấn đúp để tạo công việc"
                         className={`group flex min-h-[92px] min-w-0 flex-col border-b border-r border-[#f0e8dc] p-1 text-left transition last:border-r-0 hover:bg-[#fffaf2] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f1f8f4]" : "bg-white"}`}
                       >
-                        <span
+                        <button
+                          type="button"
+                          aria-label={`Chọn ngày ${date.getDate()}`}
+                          onClick={() => setSelectedDate(new Date(date))}
                           className={`mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${today ? "bg-[#008061] font-semibold text-white" : outside ? "text-[#c8c3ba]" : "text-[#43564d]"} ${selected && !today ? "bg-[#008061]/15 font-semibold text-[#006b51]" : ""}`}
                         >
                           {date.getDate()}
-                        </span>
+                        </button>
 
                         <div className="flex w-full flex-col gap-1">
-                          {dayTasks.slice(0, 3).map((task) => (
-                            <span
-                              key={task.id}
-                              title={`${task.title} · ${task.owner}`}
-                              className={`block truncate rounded-sm border-l-2 px-1 py-1 text-left text-[9px] leading-tight sm:px-1.5 sm:text-[11px] ${taskTone[task.color]}`}
-                            >
-                              {task.title}
-                            </span>
-                          ))}
+                          {dayTasks.slice(0, 3).map((task) =>
+                            task.ownerId === currentUser?.id ? (
+                              <button
+                                key={task.id}
+                                type="button"
+                                title={`Sửa ${task.title}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  startEditingTask(task);
+                                }}
+                                onDoubleClick={(event) =>
+                                  event.stopPropagation()
+                                }
+                                className={`block w-full truncate rounded-sm border-l-2 px-1 py-1 text-left text-[9px] leading-tight sm:px-1.5 sm:text-[11px] ${taskTone[task.color]}`}
+                              >
+                                {task.title}
+                              </button>
+                            ) : (
+                              <span
+                                key={task.id}
+                                title={`${task.title} · ${task.owner}`}
+                                className={`block truncate rounded-sm border-l-2 px-1 py-1 text-left text-[9px] leading-tight sm:px-1.5 sm:text-[11px] ${taskTone[task.color]}`}
+                              >
+                                {task.title}
+                              </span>
+                            ),
+                          )}
 
                           {dayTasks.length > 3 && (
                             <span className="px-1 text-[10px] font-semibold text-[#78867f]">
@@ -961,7 +1109,7 @@ export default function Home() {
                             </span>
                           )}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -996,8 +1144,18 @@ export default function Home() {
                         {tasksForDate(date).map((task) => (
                           <button
                             key={task.id}
-                            onClick={() => setSelectedDate(new Date(date))}
+                            onClick={() => {
+                              setSelectedDate(new Date(date));
+                              if (task.ownerId === currentUser?.id) {
+                                startEditingTask(task);
+                              }
+                            }}
                             className={`w-full rounded border-l-2 p-1.5 text-left text-[11px] ${taskTone[task.color]}`}
+                            title={
+                              task.ownerId === currentUser?.id
+                                ? "Chọn để sửa công việc"
+                                : `${task.title} · ${task.owner}`
+                            }
                           >
                             <span className="block font-medium">
                               {task.title}
@@ -1067,7 +1225,7 @@ export default function Home() {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{task.title}</p>
                           <p className="mt-1 text-xs text-[#78867f]">
-                            {task.owner} · {task.role} · {task.employeeId}
+                             {task.employeeId} · {task.owner} · {task.role}  
                           </p>
                           <span
                             className={`mt-2 inline-flex rounded-full px-2 py-1 text-[11px] ${statusColor[task.status]}`}
@@ -1075,6 +1233,59 @@ export default function Home() {
                             {task.status}
                           </span>
                         </div>
+                        {task.ownerId === currentUser?.id && (
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => startEditingTask(task)}
+                              aria-label={`Sửa ${task.title}`}
+                              title="Sửa công việc"
+                              className="rounded-xl bg-[#f6f9f8] p-2.5 text-[#008061] transition-colors hover:bg-[#e8f4ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40"
+                            >
+                              {/* Icon: bút chì trong khung (square-pen) */}
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteTask(task)}
+                              aria-label={`Xóa ${task.title}`}
+                              title="Xóa công việc"
+                              className="rounded-xl bg-[#fff0ed] p-2.5 text-[#b4231e] transition-colors hover:bg-[#ffe1db] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE2A24]/40"
+                            >
+                              {/* Icon: thùng rác có nắp (trash-2) */}
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                <line x1="10" x2="10" y1="11" y2="17" />
+                                <line x1="14" x2="14" y1="11" y2="17" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1102,7 +1313,7 @@ export default function Home() {
 
       {showLogoutConfirm && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#173b2e]/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0b3d2e]/55 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !loggingOut) {
               setShowLogoutConfirm(false);
@@ -1115,34 +1326,46 @@ export default function Home() {
             aria-modal="true"
             aria-labelledby="logout-confirm-title"
             aria-describedby="logout-confirm-description"
-            className="w-full max-w-[420px] animate-[logoutIn_160ms_ease-out] overflow-hidden rounded-[28px] border border-[#f0e4d2] bg-white shadow-[0_24px_80px_rgba(32,61,48,0.24)] ring-1 ring-black/5 motion-reduce:animate-none"
+            className="relative w-full max-w-[440px] animate-[logoutIn_160ms_ease-out] overflow-hidden rounded-[32px] bg-white shadow-[0_30px_90px_rgba(0,128,97,0.28)] motion-reduce:animate-none"
           >
-            <div className="px-6 pb-5 pt-7 sm:px-8">
-              {/* Icon */}
-              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0ed] text-[#EE2A24]">
-                <Icon name="logout" size={26} />
+            {/* Hình khối trang trí */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-[#F47B20]/90"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-[#fde6d1]"
+            />
+
+            <div className="relative px-6 pb-5 pt-8 sm:px-8">
+              {/* Thanh 3 màu */}
+              <div className="mb-6 flex h-1.5 w-14 overflow-hidden">
+                <span className="flex-1 bg-[#F47B20]" />
+                <span className="flex-1 bg-[#008061]" />
+                <span className="flex-1 bg-[#EE2A24]" />
               </div>
 
               {/* Nội dung */}
-              <div className="text-center">
+              <div className="text-left">
                 <h2
                   id="logout-confirm-title"
-                  className="text-[22px] font-extrabold tracking-tight text-[#263b33]"
+                  className="text-[26px] font-extrabold leading-tight tracking-tight text-[#14261f]"
                 >
                   Đăng xuất khỏi tài khoản?
                 </h2>
               </div>
 
               {/* Thông tin tài khoản hiện tại */}
-              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#f0e4d2] bg-[#fffaf2] px-4 py-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-semibold text-white">
+              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#e3ebe7] bg-[#f6f9f8] px-4 py-3.5">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#008061] text-sm font-bold text-white shadow-[0_6px_14px_rgba(0,128,97,0.3)] ring-2 ring-white">
                   {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#263b33]">
+                  <p className="truncate text-sm font-bold text-[#14261f]">
                     {currentUser?.fullName ?? "Tài khoản"}
                   </p>
-                  <p className="truncate text-xs text-[#78867f]">
+                  <p className="truncate text-xs text-[#6b7c75]">
                     {currentUser
                       ? `${currentUser.employeeId} · ${currentUser.jobTitle}`
                       : "Daily Task Manager"}
@@ -1154,7 +1377,7 @@ export default function Home() {
               {logoutError && (
                 <div
                   role="alert"
-                  className="mt-4 flex items-start gap-2 rounded-xl border border-[#f2c6bd] bg-[#fff0ed] px-3.5 py-2.5 text-sm text-[#b4231e]"
+                  className="mt-4 flex items-start gap-2 rounded-2xl border border-[#f7c9c4] bg-[#fff0ed] px-4 py-3 text-sm font-medium text-[#b4231e]"
                 >
                   <span className="mt-0.5 shrink-0">
                     <Icon name="close" size={16} />
@@ -1165,7 +1388,7 @@ export default function Home() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col-reverse gap-2 px-6 pb-6 sm:flex-row sm:justify-end sm:px-8 sm:pb-7">
+            <div className="relative flex flex-col-reverse gap-3 px-6 pb-7 sm:flex-row sm:justify-end sm:px-8 sm:pb-8">
               <button
                 type="button"
                 autoFocus
@@ -1174,7 +1397,7 @@ export default function Home() {
                   setShowLogoutConfirm(false);
                   setLogoutError("");
                 }}
-                className="inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold text-[#008061] transition-colors hover:bg-[#e8f4ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-12 items-center justify-center rounded-2xl border border-[#dbe6e1] bg-[#f6f9f8] px-7 text-sm font-bold text-[#008061] transition-colors hover:bg-[#e8f4ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Hủy
               </button>
@@ -1183,7 +1406,7 @@ export default function Home() {
                 type="button"
                 disabled={loggingOut}
                 onClick={handleLogout}
-                className="inline-flex h-11 min-w-[128px] items-center justify-center gap-2 rounded-xl bg-[#EE2A24] px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#cf211c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE2A24]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex h-12 min-w-[140px] items-center justify-center gap-2 rounded-2xl bg-[#EE2A24] px-7 text-sm font-bold text-white shadow-[0_10px_24px_rgba(238,42,36,0.3)] transition-colors hover:bg-[#cf211c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE2A24]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loggingOut ? (
                   <>
@@ -1204,128 +1427,229 @@ export default function Home() {
 
       {showCreate && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-[#173b2e]/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-[#0b3d2e]/55 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowCreate(false);
+            if (event.target === event.currentTarget) closeTaskForm();
           }}
         >
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-task-title"
-            className="my-auto w-full max-w-lg rounded-[28px] border border-[#f0e4d2] bg-white p-5 shadow-[0_30px_80px_rgba(32,61,48,0.24)] sm:p-7"
+            className="relative my-auto w-full max-w-lg overflow-hidden rounded-[32px] bg-white p-6 shadow-[0_30px_90px_rgba(0,128,97,0.28)] sm:p-8"
           >
-            <div className="mb-6 flex items-start justify-between">
-              <div>
-                <h2
-                  id="create-task-title"
-                  className="text-xl font-extrabold text-[#263b33]"
-                >
-                  Tạo công việc
-                </h2>
-                <p className="mt-2 text-sm text-[#64736c]">
-                  Thêm công việc mới vào lịch của đội.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                aria-label="Đóng cửa sổ"
-                className="rounded-full p-2 text-[#52615b] hover:bg-[#f4eadb]"
-              >
-                <Icon name="close" />
-              </button>
-            </div>
+            {/* Hình khối trang trí */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-12 -top-14 h-44 w-44 rounded-full bg-[#F47B20]/90"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-[#fde6d1]/70"
+            />
 
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="task-title"
-                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
-                >
-                  Tên công việc <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="task-title"
-                  required
-                  autoFocus
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Ví dụ: Kiểm tra tồn kho"
-                  className="w-full rounded-xl border border-[#e8dfd0] px-3.5 py-3 text-sm outline-none transition focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
-                />
+            <div className="relative">
+              {/* Thanh 3 màu */}
+              <div className="mb-5 flex h-1.5 w-14 overflow-hidden">
+                <span className="flex-1 bg-[#F47B20]" />
+                <span className="flex-1 bg-[#008061]" />
+                <span className="flex-1 bg-[#EE2A24]" />
               </div>
 
-              <div>
-                <label
-                  htmlFor="task-description"
-                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
-                >
-                  Mô tả (không bắt buộc)
-                </label>
-                <textarea
-                  id="task-description"
-                  rows={3}
-                  maxLength={10000}
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Thêm ghi chú cho công việc..."
-                  className="w-full resize-y rounded-xl border border-[#e8dfd0] px-3.5 py-3 text-sm outline-none transition focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="task-date"
-                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
-                >
-                  Ngày thực hiện
-                </label>
-                <input
-                  id="task-date"
-                  required
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="w-full min-w-0 rounded-xl border border-[#e8dfd0] bg-white px-3 py-3 text-sm outline-none focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="task-status"
-                  className="mb-1.5 block text-sm font-semibold text-[#43564d]"
-                >
-                  Trạng thái
-                </label>
-                <select
-                  id="task-status"
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value as TaskStatus)}
-                  className="w-full rounded-xl border border-[#e8dfd0] bg-white px-3 py-3 text-sm outline-none focus:border-[#008061] focus:ring-2 focus:ring-[#008061]/15"
-                >
-                  <option value="Chưa hoàn thành">Chưa hoàn thành</option>
-                  <option value="Hoàn thành">Hoàn thành</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col-reverse gap-2 pt-3 sm:flex-row sm:justify-end">
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <h2
+                    id="create-task-title"
+                    className="text-[26px] font-extrabold leading-tight tracking-tight text-[#14261f]"
+                  >
+                    {editingTask ? "Sửa công việc" : "Tạo công việc"}
+                  </h2>
+                  <p className="mt-2 text-sm text-[#5f6f68]">
+                    {editingTask
+                      ? "Cập nhật thông tin công việc trong lịch đội."
+                      : "Thêm công việc mới vào lịch của đội."}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowCreate(false)}
-                  className="rounded-full px-5 py-2.5 text-sm font-semibold text-[#008061] hover:bg-[#e8f4ef]"
+                  onClick={closeTaskForm}
+                  aria-label="Đóng cửa sổ"
+                  className="relative z-10 rounded-full bg-white/90 p-2 text-[#14261f] shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40"
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingTask}
-                  className="rounded-full bg-[#008061] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006b51] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {savingTask ? "Đang lưu..." : "Lưu công việc"}
+                  <Icon name="close" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleCreateTask} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="task-title"
+                    className="mb-1.5 block text-sm font-semibold text-[#14261f]"
+                  >
+                    Tên công việc <span className="text-[#EE2A24]">*</span>
+                  </label>
+                  <input
+                    id="task-title"
+                    required
+                    autoFocus
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="Ví dụ: Kiểm tra tồn kho"
+                    className="w-full rounded-2xl border border-[#dde5e1] bg-[#f6f9f8] px-4 py-3.5 text-sm text-[#14261f] outline-none transition placeholder:text-[#8d9a94] focus:border-[#008061] focus:bg-white focus:ring-2 focus:ring-[#008061]/15"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="task-description"
+                    className="mb-1.5 block text-sm font-semibold text-[#14261f]"
+                  >
+                    Mô tả (không bắt buộc)
+                  </label>
+                  <textarea
+                    id="task-description"
+                    rows={3}
+                    maxLength={10000}
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="Thêm ghi chú cho công việc..."
+                    className="w-full resize-y rounded-2xl border border-[#dde5e1] bg-[#f6f9f8] px-4 py-3.5 text-sm text-[#14261f] outline-none transition placeholder:text-[#8d9a94] focus:border-[#008061] focus:bg-white focus:ring-2 focus:ring-[#008061]/15"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="task-date"
+                    className="mb-1.5 block text-sm font-semibold text-[#14261f]"
+                  >
+                    Ngày thực hiện
+                  </label>
+                  <input
+                    id="task-date"
+                    required
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    className="w-full min-w-0 rounded-2xl border border-[#dde5e1] bg-[#f6f9f8] px-4 py-3.5 text-sm text-[#14261f] outline-none transition focus:border-[#008061] focus:bg-white focus:ring-2 focus:ring-[#008061]/15"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="task-status"
+                    className="mb-1.5 block text-sm font-semibold text-[#14261f]"
+                  >
+                    Trạng thái
+                  </label>
+                  <select
+                    id="task-status"
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value as TaskStatus)}
+                    className="w-full rounded-2xl border border-[#dde5e1] bg-[#f6f9f8] px-4 py-3.5 text-sm text-[#14261f] outline-none transition focus:border-[#008061] focus:bg-white focus:ring-2 focus:ring-[#008061]/15"
+                  >
+                    <option value="Chưa hoàn thành">Chưa hoàn thành</option>
+                    <option value="Hoàn thành">Hoàn thành</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col-reverse gap-3 pt-3 sm:flex-row sm:items-center sm:justify-end">
+                  {editingTask && (
+                    <button
+                      type="button"
+                      onClick={() => confirmDeleteTask(editingTask)}
+                      className="mr-auto inline-flex h-12 items-center justify-center rounded-2xl px-5 text-sm font-bold text-[#b4231e] transition-colors hover:bg-[#fff0ed] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE2A24]/40"
+                    >
+                      Xóa công việc
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closeTaskForm}
+                    className="inline-flex h-12 items-center justify-center rounded-2xl border border-[#dbe6e1] bg-[#f6f9f8] px-6 text-sm font-bold text-[#008061] transition-colors hover:bg-[#e8f4ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingTask}
+                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#008061] px-7 text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,128,97,0.3)] transition-colors hover:bg-[#006b51] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008061]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingTask
+                      ? editingTask
+                        ? "Đang cập nhật..."
+                        : "Đang lưu..."
+                      : editingTask
+                        ? "Lưu thay đổi"
+                        : "Lưu công việc"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+      )}
+      {deletingTask && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#173b2e]/55 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              !deletingTaskBusy
+            ) {
+              setDeletingTask(null);
+              setTaskError("");
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-task-title"
+            className="w-full max-w-[420px] rounded-[28px] border border-[#f0e4d2] bg-white p-6 shadow-[0_24px_80px_rgba(32,61,48,0.24)] sm:p-8"
+          >
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff0ed] text-[#EE2A24]">
+              <Icon name="trash" size={25} />
+            </div>
+            <div className="text-center">
+              <h2
+                id="delete-task-title"
+                className="text-xl font-extrabold text-[#263b33]"
+              >
+                Xóa công việc này?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[#64736c]">
+                Công việc “{deletingTask.title}” sẽ bị xóa vĩnh viễn khỏi lịch.
+              </p>
+            </div>
+            {taskError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl border border-[#f2c6bd] bg-[#fff0ed] px-3 py-2 text-sm text-[#b4231e]"
+              >
+                {taskError}
+              </p>
+            )}
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={deletingTaskBusy}
+                onClick={() => {
+                  setDeletingTask(null);
+                  setTaskError("");
+                }}
+                className="rounded-full px-5 py-2.5 text-sm font-semibold text-[#008061] hover:bg-[#e8f4ef] disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={deletingTaskBusy}
+                onClick={handleDeleteTask}
+                className="rounded-full bg-[#EE2A24] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#cf211c] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingTaskBusy ? "Đang xóa..." : "Xóa công việc"}
+              </button>
+            </div>
           </section>
         </div>
       )}
