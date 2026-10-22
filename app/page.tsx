@@ -1219,14 +1219,11 @@ export default function Home() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{task.title}</p>
-                          <p className="mt-1 text-xs text-[#78867f]">
-                             {task.employeeId} · {task.owner} · {task.role}  
-                          </p>
-                          <span
-                            className={`mt-2 inline-flex rounded-full px-2 py-1 text-[11px] ${statusColor[task.status]}`}
-                          >
-                            {task.status}
-                          </span>
+                          {task.description && (
+                            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-[#52615b]">
+                              {task.description}
+                            </p>
+                          )}
                         </div>
                         {task.ownerId === currentUser?.id && (
                           <div className="flex shrink-0 items-center gap-1.5">
