@@ -193,7 +193,9 @@ function TaskStatusToggle({
   onToggle: () => void;
 }) {
   const isCompleted = task.status === "Hoàn thành";
-  const action = isCompleted ? "Chuyển về chưa hoàn thành" : "Đánh dấu hoàn thành";
+  const action = isCompleted
+    ? "Chuyển về chưa hoàn thành"
+    : "Đánh dấu hoàn thành";
 
   return (
     <button
@@ -244,9 +246,9 @@ export default function Home() {
 
   const [deletingTaskBusy, setDeletingTaskBusy] = useState(false);
 
-  const [updatingTaskStatusId, setUpdatingTaskStatusId] = useState<string | null>(
-    null,
-  );
+  const [updatingTaskStatusId, setUpdatingTaskStatusId] = useState<
+    string | null
+  >(null);
 
   const [search, setSearch] = useState("");
 
@@ -382,12 +384,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [
-    view,
-    currentDate.getTime(),
-    selectedDate.getTime(),
-    router,
-  ]);
+  }, [view, currentDate.getTime(), selectedDate.getTime(), router]);
 
   // Đóng modal xác nhận đăng xuất bằng phím Esc.
   useEffect(() => {
@@ -1180,9 +1177,7 @@ export default function Home() {
                                   {task.title}
                                 </button>
                               ) : (
-                                <span
-                                  className="min-w-0 flex-1 truncate text-left text-[9px] font-medium leading-tight opacity-80 sm:text-[11px]"
-                                >
+                                <span className="min-w-0 flex-1 truncate text-left text-[9px] font-medium leading-tight opacity-80 sm:text-[11px]">
                                   {task.title}
                                 </span>
                               )}
@@ -1201,9 +1196,19 @@ export default function Home() {
                           ))}
 
                           {dayTasks.length > 3 && (
-                            <span className="px-1 text-[10px] font-semibold text-[#78867f]">
-                              +{dayTasks.length - 3} nữa
-                            </span>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedDate(new Date(date));
+                                setView("day");
+                              }}
+                              className="flex w-fit items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-[#78867f] transition-colors hover:text-[#008061] sm:text-[11px]"
+                              title={`Xem tất cả ${dayTasks.length} công việc`}
+                            >
+                              <span>+{dayTasks.length - 3}</span>
+                              <span>công việc khác</span>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -1704,10 +1709,7 @@ export default function Home() {
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0b3d2e]/55 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
-            if (
-              event.target === event.currentTarget &&
-              !deletingTaskBusy
-            ) {
+            if (event.target === event.currentTarget && !deletingTaskBusy) {
               setDeletingTask(null);
               setTaskError("");
             }
@@ -1745,7 +1747,8 @@ export default function Home() {
                   Xóa công việc này?
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-[#5f6f68]">
-                  Công việc “{deletingTask.title}” sẽ bị xóa vĩnh viễn khỏi lịch.
+                  Công việc “{deletingTask.title}” sẽ bị xóa vĩnh viễn khỏi
+                  lịch.
                 </p>
               </div>
 
