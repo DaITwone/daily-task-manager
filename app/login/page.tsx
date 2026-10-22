@@ -66,11 +66,11 @@ function LoginForm() {
 
   return (
     <AuthShell mode="login">
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         <div>
           <label
             htmlFor="employeeId"
-            className="mb-2 block text-sm font-semibold text-slate-700"
+            className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2"
           >
             Mã nhân viên
           </label>
@@ -83,12 +83,12 @@ function LoginForm() {
             value={employeeId}
             onChange={(event) => setEmployeeId(event.target.value)}
             placeholder="1012642"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#00843d] focus:bg-white focus:ring-4 focus:ring-[#00843d]/10"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#00843d] focus:bg-white focus:ring-4 focus:ring-[#00843d]/10 sm:py-3.5"
           />
         </div>
 
         <div>
-          <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="mb-1.5 flex items-center justify-between gap-3 sm:mb-2">
             <label
               htmlFor="password"
                 className="text-sm font-semibold  text-slate-700"
@@ -107,7 +107,7 @@ function LoginForm() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Nhập mật khẩu"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 pr-20 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#00843d] focus:bg-white focus:ring-4 focus:ring-[#00843d]/10"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-20 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#00843d] focus:bg-white focus:ring-4 focus:ring-[#00843d]/10 sm:py-3.5"
             />
 
             <button
@@ -143,7 +143,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00843d] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#00843d]/15 transition hover:bg-[#006b32] focus:outline-none focus:ring-4 focus:ring-[#00843d]/20 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00843d] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-[#00843d]/15 transition hover:bg-[#006b32] focus:outline-none focus:ring-4 focus:ring-[#00843d]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:py-3.5"
         >
           {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           {!loading && <span aria-hidden="true"></span>}

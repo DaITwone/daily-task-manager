@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import Image from "next/image";
 
 type AuthShellProps = {
@@ -28,31 +27,6 @@ const keyframes = `
 }
 `;
 
-function Mark({ size = "lg" }: { size?: "sm" | "lg" }) {
-  const isLg = size === "lg";
-  return (
-    <span
-      className={`inline-flex flex-col overflow-hidden rounded-2xl bg-white shadow-md ${
-        isLg ? "h-16 w-16" : "h-11 w-11"
-      }`}
-      aria-hidden="true"
-    >
-      <span
-        className={`flex flex-1 items-center justify-center font-black leading-none text-[#008061] ${
-          isLg ? "text-4xl" : "text-2xl"
-        }`}
-      >
-        7
-      </span>
-      <span className="flex h-1.5 w-full">
-        <span className="flex-1 bg-[#F47B20]" />
-        <span className="flex-1 bg-[#008061]" />
-        <span className="flex-1 bg-[#EE2A24]" />
-      </span>
-    </span>
-  );
-}
-
 function Avatar({ label, color }: { label: string; color: string }) {
   return (
     <span
@@ -67,7 +41,7 @@ export function AuthShell({ children, mode }: AuthShellProps) {
   const isLogin = mode === "login";
 
   return (
-    <main className="relative flex min-h-screen justify-center bg-[#FFF8EC] px-4 py-8 md:py-10">
+    <main className="relative flex min-h-screen justify-center bg-[#FFF8EC] px-3 py-4 sm:px-4 sm:py-8 md:py-10">
       <style>{keyframes}</style>
 
       {/* Nền vui mắt: cố định theo màn hình, không bị form dài kéo giãn hay che */}
@@ -80,11 +54,11 @@ export function AuthShell({ children, mode }: AuthShellProps) {
         <span className="absolute right-1/4 top-6 h-10 w-10 rounded-full bg-[#EE2A24]/70" />
       </div>
 
-      <div className="relative my-auto grid w-full max-w-5xl overflow-hidden rounded-[32px] bg-white shadow-[0_30px_60px_-25px_rgba(0,90,60,0.45)] md:grid-cols-[1.08fr_1fr]">
+      <div className="relative my-auto grid w-full max-w-5xl overflow-hidden rounded-[24px] bg-white shadow-[0_30px_60px_-25px_rgba(0,90,60,0.45)] sm:rounded-[32px] md:grid-cols-[1.08fr_1fr]">
         {" "}
         {/* Panel trái */}
-        <section className="relative hidden overflow-hidden bg-[#008061] text-white md:block">
-          <div className="relative flex h-full flex-col p-8 lg:p-10">
+        <section className="relative overflow-hidden bg-[#008061] text-white">
+          <div className="relative flex h-full flex-col p-5 sm:p-8 lg:p-10">
             {" "}
             {/* Dải sọc 3 màu chéo, nét đặc trưng của biển hiệu */}
             <div
@@ -96,31 +70,32 @@ export function AuthShell({ children, mode }: AuthShellProps) {
               <span className="block h-7 bg-[#EE2A24]" />
             </div>
             <span className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-[#F47B20]" />
-            <div className="relative z-10 inline-flex w-fit items-center gap-4">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden">
+            <div className="relative z-10 inline-flex w-fit items-center gap-3 sm:gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden sm:h-20 sm:w-20">
                 {/* Thêm ảnh logo tại đây */}
                 <Image
                   src="/images/logo.png"
                   alt="Daily Task Manager"
                   width={80}
                   height={80}
+                  className="h-full w-full object-contain"
                 />
               </div>
 
-              <span className="text-xl font-extrabold leading-tight tracking-tight">
+              <span className="text-base font-extrabold leading-tight tracking-tight sm:text-xl">
                 Daily Task Manager
               </span>
             </div>
-            <h1 className="relative z-10 mt-7 max-w-sm text-4xl font-bold italic leading-[1.05] tracking-tight text-white lg:text-[2.65rem]">
+            <h1 className="relative z-10 mt-5 max-w-sm text-[1.8rem] font-bold italic leading-[1.05] tracking-tight text-white sm:mt-7 sm:text-4xl lg:text-[2.65rem]">
               <span className="relative z-10 block">Kết nối đội ngũ,</span>
               <span className="relative z-0 -mt-1 ml-3 inline-block -rotate-2 text-[#FFD18C]">
                 bứt phá mục tiêu.
               </span>
             </h1>
             {/* Các thẻ công việc minh hoạ */}
-            <div className="relative z-10 mt-10 w-full max-w-[22rem]">
+            <div className="relative z-10 mt-6 w-full max-w-[22rem] sm:mt-10">
               <div
-                className="dtm-card flex items-center gap-3 rounded-2xl bg-white p-3.5 text-slate-800 shadow-lg"
+                className="dtm-card flex items-center gap-2 rounded-2xl bg-white p-2.5 text-slate-800 shadow-lg sm:gap-3 sm:p-3.5"
                 style={{ ["--r" as string]: "-2deg", animationDelay: "0.2s" }}
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#008061]">
@@ -143,14 +118,14 @@ export function AuthShell({ children, mode }: AuthShellProps) {
                   <p className="text-xs text-slate-500">Tiến độ hoàn thành</p>
                 </div>
 
-                <span className="rounded-full bg-[#008061]/10 px-2.5 py-1 text-xs font-bold text-[#008061]">
+                <span className="shrink-0 rounded-full bg-[#008061]/10 px-2 py-1 text-[10px] font-bold text-[#008061] sm:px-2.5 sm:text-xs">
                   10/10
                 </span>
               </div>
 
               {/* Card 2: Lịch đội ngũ quản lý */}
               <div
-                className="dtm-card ml-6 mt-3 flex items-center gap-3 rounded-2xl bg-white p-3.5 text-slate-800 shadow-lg"
+                className="dtm-card ml-3 mt-3 flex items-center gap-2 rounded-2xl bg-white p-2.5 text-slate-800 shadow-lg sm:ml-6 sm:gap-3 sm:p-3.5"
                 style={{ ["--r" as string]: "1.5deg", animationDelay: "0.45s" }}
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F47B20]/10 text-[#F47B20]">
@@ -177,20 +152,20 @@ export function AuthShell({ children, mode }: AuthShellProps) {
                     <Avatar label="SM" color="bg-[#008061]" />
                     <Avatar label="AM" color="bg-[#F47B20]" />
                     <Avatar label="OM" color="bg-[#EE2A24]" />
-                    <span className="ml-2 text-xs text-slate-500">
+                    <span className="ml-1.5 text-[10px] text-slate-500 sm:ml-2 sm:text-xs">
                       SM · AM · OM
                     </span>
                   </div>
                 </div>
 
-                <span className="rounded-full bg-[#F47B20]/10 px-2.5 py-1 text-xs font-bold text-[#F47B20]">
+                <span className="shrink-0 rounded-full bg-[#F47B20]/10 px-2 py-1 text-[10px] font-bold text-[#F47B20] sm:px-2.5 sm:text-xs">
                   Hôm nay
                 </span>
               </div>
 
               {/* Card 3: Theo dõi vận hành */}
               <div
-                className="dtm-card mt-3 flex items-center gap-3 rounded-2xl bg-white p-3.5 text-slate-800 shadow-lg"
+                className="dtm-card mt-3 flex items-center gap-2 rounded-2xl bg-white p-2.5 text-slate-800 shadow-lg sm:gap-3 sm:p-3.5"
                 style={{ ["--r" as string]: "-1deg", animationDelay: "0.7s" }}
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EE2A24]/10 text-[#EE2A24]">
@@ -218,7 +193,7 @@ export function AuthShell({ children, mode }: AuthShellProps) {
                   </p>
                 </div>
 
-                <span className="rounded-full bg-[#EE2A24]/10 px-2.5 py-1 text-xs font-bold text-[#EE2A24]">
+                <span className="shrink-0 rounded-full bg-[#EE2A24]/10 px-2 py-1 text-[10px] font-bold text-[#EE2A24] sm:px-2.5 sm:text-xs">
                   Báo cáo
                 </span>
               </div>
@@ -226,21 +201,9 @@ export function AuthShell({ children, mode }: AuthShellProps) {
           </div>
         </section>
         {/* Panel form */}
-        <section className="flex items-center justify-center px-6 py-8 sm:px-10 md:px-12 md:py-10">
+        <section className="flex items-center justify-center px-5 py-6 sm:px-10 sm:py-8 md:px-12 md:py-10">
           <div className="w-full max-w-md">
-            <Link
-              href="/"
-              className="mb-8 inline-flex items-center gap-3 md:hidden"
-            >
-              <span className="inline-flex rounded-2xl bg-[#008061] p-1">
-                <Mark size="sm" />
-              </span>
-              <span className="font-extrabold text-slate-900">
-                Daily Task Manager
-              </span>
-            </Link>
-
-            <div className={isLogin ? "mb-8" : "mb-5"}>
+            <div className={isLogin ? "mb-5 sm:mb-8" : "mb-4 sm:mb-5"}>
               <span
                 className="mb-4 flex h-2 w-20 overflow-hidden rounded-full"
                 aria-hidden="true"
@@ -251,12 +214,12 @@ export function AuthShell({ children, mode }: AuthShellProps) {
               </span>
               <h2
                 className={`font-extrabold tracking-tight text-slate-900 ${
-                  isLogin ? "text-4xl" : "text-3xl"
+                  isLogin ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"
                 }`}
               >
                 {isLogin ? "ĐĂNG NHẬP" : "ĐĂNG KÝ"}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <p className="mt-1.5 text-sm leading-5 sm:mt-2 sm:leading-6 text-slate-600">
                 {isLogin
                   ? "Đăng nhập để xem lịch việc của bạn và cả đội."
                   : "Điền đầy đủ thông tin để bắt đầu sử dụng hệ thống."}
@@ -266,7 +229,7 @@ export function AuthShell({ children, mode }: AuthShellProps) {
             {children}
 
             <p
-              className={`text-center text-xs text-slate-400 ${isLogin ? "mt-8" : "mt-5"}`}
+              className={`text-center text-xs text-slate-400 ${isLogin ? "mt-5 sm:mt-8" : "mt-4 sm:mt-5"}`}
             >
               © Daily Task Manager
             </p>

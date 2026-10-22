@@ -116,7 +116,7 @@ export default function RegisterPage() {
 
       {/* Tiến trình: 3 đoạn cam, xanh, đỏ */}
       <ol
-        className="mb-6 grid grid-cols-3 gap-2"
+        className="mb-4 grid grid-cols-3 gap-2 sm:mb-6"
         aria-label="Tiến trình đăng ký"
       >
         {steps.map((item, index) => {
@@ -145,11 +145,11 @@ export default function RegisterPage() {
         })}
       </ol>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <p className="text-sm text-slate-500">{steps[step].hint}</p>
 
         {/* key giúp mỗi bước trượt vào lại một lần khi chuyển */}
-        <div key={step} className="dtm-step space-y-4">
+        <div key={step} className="dtm-step space-y-3 sm:space-y-4">
           {step === 0 && (
             <div>
               <label htmlFor="email" className={labelClass}>
