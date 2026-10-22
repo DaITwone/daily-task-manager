@@ -108,7 +108,7 @@ export function AuthShell({ children, mode }: AuthShellProps) {
               </div>
 
               <span className="text-xl font-extrabold leading-tight tracking-tight">
-                Daily Task
+                Daily Task Manager
               </span>
             </div>
             <h1 className="relative z-10 mt-7 max-w-sm text-4xl font-bold italic leading-[1.05] tracking-tight text-white lg:text-[2.65rem]">

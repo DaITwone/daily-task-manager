@@ -7,12 +7,18 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 type View = "day" | "week" | "month";
+
 type TaskColor = "green" | "orange" | "red";
-type TaskStatus = "Chưa bắt đầu" | "Đang thực hiện" | "Hoàn thành";
+
+type TaskStatus = "Chưa hoàn thành" | "Hoàn thành";
+
 type ApiTaskStatus = "TODO" | "IN_PROGRESS" | "COMPLETED";
+
 type CurrentUser = {
   id: string;
   employeeId: string;
@@ -20,25 +26,37 @@ type CurrentUser = {
   email: string;
   jobTitle: string;
 };
+
 type Task = {
   id: string;
+
   title: string;
+
   description?: string | null;
+
   owner: string;
+
   employeeId: string;
+
   role: string;
+
   date: string;
+
   status: TaskStatus;
+
   color: TaskColor;
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
 const isoDate = (date: Date) =>
   `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
 const monthLabel = (date: Date) =>
   new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric" }).format(
     date,
   );
+
 const longDate = (date: Date) =>
   new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
@@ -46,22 +64,27 @@ const longDate = (date: Date) =>
     month: "long",
     year: "numeric",
   }).format(date);
+
 const shortWeekday = (date: Date) =>
   new Intl.DateTimeFormat("vi-VN", { weekday: "short" }).format(date);
+
 const taskTone: Record<TaskColor, string> = {
   green: "border-l-[#188038] bg-[#e6f4ea] text-[#137333]",
+
   orange: "border-l-[#e37400] bg-[#fef7e0] text-[#b06000]",
+
   red: "border-l-[#d93025] bg-[#fce8e6] text-[#c5221f]",
 };
+
 const taskDot: Record<TaskColor, string> = {
   green: "bg-[#188038]",
   orange: "bg-[#e37400]",
   red: "bg-[#d93025]",
 };
+
 const statusColor: Record<TaskStatus, string> = {
-  "Chưa bắt đầu": "bg-[#fef7e0] text-[#b06000]",
-  "Đang thực hiện": "bg-[#e6f4ea] text-[#137333]",
-  "Hoàn thành": "bg-[#e8f0fe] text-[#1967d2]",
+  "Chưa hoàn thành": "bg-[#fef7e0] text-[#8a5300]",
+  "Hoàn thành": "bg-[#e6f4ea] text-[#137333]",
 };
 
 function Icon({ name, size = 20 }: { name: string; size?: number }) {
@@ -76,86 +99,132 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     strokeLinejoin: "round" as const,
     "aria-hidden": true as const,
   };
+
   const paths: Record<string, ReactNode> = {
     menu: (
       <>
         <path d="M4 6h16M4 12h16M4 18h16" />
       </>
     ),
+    panelLeftClose: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="3" />
+        <path d="M9 4v16M14 9l-3 3 3 3" />
+      </>
+    ),
+    panelLeftOpen: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="3" />
+        <path d="M9 4v16M13 9l3 3-3 3" />
+      </>
+    ),
+
     search: (
       <>
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-4-4" />
       </>
     ),
+
     calendar: (
       <>
         <rect x="3" y="5" width="18" height="16" rx="2" />
         <path d="M16 3v4M8 3v4M3 10h18" />
       </>
     ),
+
     plus: (
       <>
         <path d="M12 5v14M5 12h14" />
       </>
     ),
+
     chevronLeft: <path d="m15 18-6-6 6-6" />,
+
     chevronRight: <path d="m9 18 6-6-6-6" />,
+
     settings: (
       <>
         <circle cx="12" cy="12" r="3" />
         <path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.5-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.5.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.7Z" />
       </>
     ),
+
     logout: (
       <>
         <path d="M10 17l5-5-5-5M15 12H3" />
         <path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6" />
       </>
     ),
+
     close: (
       <>
         <path d="m18 6-12 12M6 6l12 12" />
       </>
     ),
   };
+
   return <svg {...common}>{paths[name] ?? paths.calendar}</svg>;
 }
 
 export default function Home() {
   const router = useRouter();
+
   const [view, setView] = useState<View>("month");
+
   const [currentDate, setCurrentDate] = useState(() => new Date());
+
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+
   const [tasks, setTasks] = useState<Task[]>([]);
+
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
   const [loadingTasks, setLoadingTasks] = useState(true);
+
   const [taskError, setTaskError] = useState("");
+
   const [savingTask, setSavingTask] = useState(false);
+
   const [showCreate, setShowCreate] = useState(false);
+
   const [search, setSearch] = useState("");
+
   const [checkingSession, setCheckingSession] = useState(true);
+
   const [loggingOut, setLoggingOut] = useState(false);
+
   const [logoutError, setLogoutError] = useState("");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const [newTitle, setNewTitle] = useState("");
+
   const [newDescription, setNewDescription] = useState("");
+
   const [newDate, setNewDate] = useState(() => isoDate(new Date()));
-  const [newStatus, setNewStatus] = useState<TaskStatus>("Chưa bắt đầu");
+
+  const [newStatus, setNewStatus] = useState<TaskStatus>("Chưa hoàn thành");
 
   useEffect(() => {
     let active = true;
+
     async function checkSession() {
       try {
         const response = await fetch("/api/auth/me", {
           credentials: "same-origin",
           cache: "no-store",
         });
+
         if (!response.ok) {
           router.replace("/login");
           return;
         }
+
         const data = await response.json();
+
         if (active) setCurrentUser(data.user as CurrentUser);
       } catch {
         router.replace("/login");
@@ -163,7 +232,9 @@ export default function Home() {
         if (active) setCheckingSession(false);
       }
     }
+
     void checkSession();
+
     return () => {
       active = false;
     };
@@ -171,57 +242,69 @@ export default function Home() {
 
   useEffect(() => {
     if (checkingSession) return;
+
     let active = true;
+
     async function loadTasks() {
       setLoadingTasks(true);
+
       setTaskError("");
+
       const dateForRequest = view === "month" ? currentDate : selectedDate;
+
       try {
         const params = new URLSearchParams({
           view,
           date: isoDate(dateForRequest),
         });
+
         const response = await fetch(`/api/tasks?${params.toString()}`, {
           credentials: "same-origin",
+
           cache: "no-store",
         });
+
         const data = await response.json();
+
         if (response.status === 401) {
           router.replace("/login");
           return;
         }
+
         if (!response.ok)
           throw new Error(data.message || "Không thể tải công việc.");
+
         const mapped: Task[] = (data.tasks ?? []).map(
           (item: {
             id: string;
             title: string;
             description?: string | null;
             taskDate: string;
+
             status: ApiTaskStatus;
             user: { employeeId: string; fullName: string; jobTitle: string };
           }) => ({
             id: item.id,
+
             title: item.title,
+
             description: item.description,
+
             owner: item.user.fullName,
+
             employeeId: item.user.employeeId,
+
             role: item.user.jobTitle,
+
             date: String(item.taskDate).slice(0, 10),
+
             status:
-              item.status === "COMPLETED"
-                ? "Hoàn thành"
-                : item.status === "IN_PROGRESS"
-                  ? "Đang thực hiện"
-                  : "Chưa bắt đầu",
-            color:
-              item.status === "COMPLETED"
-                ? "red"
-                : item.status === "IN_PROGRESS"
-                  ? "green"
-                  : "orange",
+              item.status === "COMPLETED" ? "Hoàn thành" : "Chưa hoàn thành",
+
+            color: item.status === "COMPLETED" ? "green" : "orange",
           }),
         );
+
         if (active) setTasks(mapped);
       } catch (error) {
         if (active)
@@ -232,7 +315,9 @@ export default function Home() {
         if (active) setLoadingTasks(false);
       }
     }
+
     void loadTasks();
+
     return () => {
       active = false;
     };
@@ -244,33 +329,61 @@ export default function Home() {
     router,
   ]);
 
+  // Đóng modal xác nhận đăng xuất bằng phím Esc.
+  useEffect(() => {
+    if (!showLogoutConfirm) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !loggingOut) {
+        setShowLogoutConfirm(false);
+        setLogoutError("");
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showLogoutConfirm, loggingOut]);
+
   const monthStart = new Date(
     currentDate.getFullYear(),
     currentDate.getMonth(),
     1,
   );
+
   const gridStart = new Date(monthStart);
+
   gridStart.setDate(monthStart.getDate() - ((monthStart.getDay() + 6) % 7));
+
   const monthDays = Array.from({ length: 42 }, (_, i) => {
     const date = new Date(gridStart);
+
     date.setDate(gridStart.getDate() + i);
+
     return date;
   });
+
   const weekStart = new Date(selectedDate);
+
   weekStart.setDate(selectedDate.getDate() - ((selectedDate.getDay() + 6) % 7));
+
   const visibleDays = useMemo(() => {
     if (view === "day") return [selectedDate];
+
     if (view === "week")
       return Array.from({ length: 7 }, (_, i) => {
         const date = new Date(weekStart);
+
         date.setDate(weekStart.getDate() + i);
+
         return date;
       });
+
     return monthDays;
   }, [view, selectedDate, weekStart.getTime(), currentDate.getTime()]);
 
   const filteredTasks = tasks.filter((task) => {
     const q = search.trim().toLocaleLowerCase("vi");
+
     return (
       task.title.toLocaleLowerCase("vi").includes(q) ||
       task.owner.toLocaleLowerCase("vi").includes(q) ||
@@ -279,62 +392,102 @@ export default function Home() {
       (task.description ?? "").toLocaleLowerCase("vi").includes(q)
     );
   });
+
   const tasksForDate = (date: Date) =>
     filteredTasks.filter((task) => task.date === isoDate(date));
+
   const totalTasks = tasks.length;
-  const inProgressTasks = tasks.filter(
-    (task) => task.status === "Đang thực hiện",
+
+  const unfinishedTasks = tasks.filter(
+    (task) => task.status === "Chưa hoàn thành",
   ).length;
+
   const completedTasks = tasks.filter(
     (task) => task.status === "Hoàn thành",
   ).length;
 
   function moveDate(direction: number) {
-    const next = new Date(view === "month" ? currentDate : selectedDate);
-    if (view === "day") next.setDate(next.getDate() + direction);
-    else if (view === "week") next.setDate(next.getDate() + direction * 7);
-    else next.setMonth(next.getMonth() + direction);
+    if (view === "month") {
+      // Chỉ chuyển tháng, không thay đổi ngày đang được chọn.
+      // Đặt về ngày 1 để tránh lỗi khi chuyển từ tháng có 31 ngày.
+      setCurrentDate((current) => {
+        const next = new Date(
+          current.getFullYear(),
+          current.getMonth() + direction,
+          1,
+        );
+
+        return next;
+      });
+
+      return;
+    }
+
+    const next = new Date(selectedDate);
+
+    if (view === "day") {
+      next.setDate(next.getDate() + direction);
+    } else {
+      next.setDate(next.getDate() + direction * 7);
+    }
+
     setSelectedDate(new Date(next));
     setCurrentDate(new Date(next));
   }
+
   function goToday() {
     const today = new Date();
+
     setSelectedDate(today);
+
     setCurrentDate(today);
   }
+
   async function handleLogout() {
     if (loggingOut) return;
+
     setLoggingOut(true);
+
     setLogoutError("");
+
     try {
       const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "same-origin",
       });
+
       if (!response.ok) throw new Error("Logout failed");
+
       router.replace("/login");
+
       router.refresh();
     } catch {
       setLogoutError("Không thể đăng xuất. Cậu thử lại nhé.");
+
       setLoggingOut(false);
     }
   }
+
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!newTitle.trim() || !newDate || savingTask) return;
+
     setSavingTask(true);
+
     setTaskError("");
+
     const status: ApiTaskStatus =
-      newStatus === "Hoàn thành"
-        ? "COMPLETED"
-        : newStatus === "Đang thực hiện"
-          ? "IN_PROGRESS"
-          : "TODO";
+      newStatus === "Hoàn thành" ? "COMPLETED" : "TODO";
+
     try {
       const response = await fetch("/api/tasks", {
         method: "POST",
+
         credentials: "same-origin",
+
         headers: { "Content-Type": "application/json" },
+
         body: JSON.stringify({
           title: newTitle.trim(),
           description: newDescription.trim(),
@@ -342,29 +495,44 @@ export default function Home() {
           status,
         }),
       });
+
       const data = await response.json();
+
       if (response.status === 401) {
         router.replace("/login");
         return;
       }
+
       if (!response.ok)
         throw new Error(data.message || "Không thể tạo công việc.");
+
       const date = new Date(`${newDate}T12:00:00`);
+
       setSelectedDate(date);
+
       setCurrentDate(date);
+
       setView("month");
+
       setNewTitle("");
+
       setNewDescription("");
+
       setNewDate(isoDate(new Date()));
-      setNewStatus("Chưa bắt đầu");
+
+      setNewStatus("Chưa hoàn thành");
+
       setShowCreate(false);
-      // Fetch the selected month again after the new task has been committed.
+
       const params = new URLSearchParams({ view: "month", date: newDate });
+
       const refreshResponse = await fetch(`/api/tasks?${params.toString()}`, {
         credentials: "same-origin",
         cache: "no-store",
       });
+
       const refreshData = await refreshResponse.json();
+
       if (refreshResponse.ok) {
         setTasks(
           (refreshData.tasks ?? []).map(
@@ -382,19 +550,12 @@ export default function Home() {
               owner: item.user.fullName,
               employeeId: item.user.employeeId,
               role: item.user.jobTitle,
+
               date: String(item.taskDate).slice(0, 10),
               status:
-                item.status === "COMPLETED"
-                  ? "Hoàn thành"
-                  : item.status === "IN_PROGRESS"
-                    ? "Đang thực hiện"
-                    : "Chưa bắt đầu",
-              color:
-                item.status === "COMPLETED"
-                  ? "red"
-                  : item.status === "IN_PROGRESS"
-                    ? "green"
-                    : "orange",
+                item.status === "COMPLETED" ? "Hoàn thành" : "Chưa hoàn thành",
+
+              color: item.status === "COMPLETED" ? "green" : "orange",
             }),
           ),
         );
@@ -419,7 +580,7 @@ export default function Home() {
     );
 
   return (
-    <main className="min-h-screen bg-white text-[#3c4043]">
+    <main className="min-h-screen bg-[#F8FAFD] text-[#3c4043]">
       {sidebarOpen && (
         <button
           aria-label="Đóng menu"
@@ -427,9 +588,10 @@ export default function Home() {
           className="fixed inset-0 z-40 bg-black/30 md:hidden"
         />
       )}
+
       <div className="flex min-h-screen">
         <aside
-          className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 flex w-[256px] flex-col border-r border-[#dadce0] bg-[#f8fafd] px-4 py-5 transition-transform md:sticky md:top-0 md:h-screen md:translate-x-0`}
+          className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "md:hidden" : ""} fixed inset-y-0 left-0 z-50 flex w-[256px] flex-col bg-[#f8fafd] px-4 py-5 transition-transform duration-200 md:sticky md:top-0 md:h-screen md:translate-x-0`}
         >
           <div className="mb-7 flex items-center gap-3 px-2">
             <button
@@ -439,10 +601,22 @@ export default function Home() {
             >
               <Icon name="close" />
             </button>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a73e8] text-white">
-              <Icon name="calendar" size={21} />
+            <div
+              title="Daily Task Manager"
+              className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white"
+            >
+              <Image
+                src="/images/logo.png"
+                alt="Daily Task Manager logo"
+                width={200}
+                height={200}
+                className="h-full w-full object-contain"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[21px] font-normal tracking-tight text-[#5f6368]">
                 Calendar
               </p>
@@ -450,13 +624,14 @@ export default function Home() {
             </div>
           </div>
           <button
+            title="Tạo công việc"
+            aria-label="Tạo công việc"
             onClick={() => setShowCreate(true)}
             className="mb-7 flex h-12 w-fit items-center gap-3 rounded-2xl border border-[#dadce0] bg-white px-5 text-sm font-medium shadow-[0_1px_2px_rgba(60,64,67,.15)] transition hover:bg-[#f8fafd] hover:shadow-md"
           >
             <span className="text-[#1a73e8]">
               <Icon name="plus" size={23} />
-            </span>{" "}
-            Tạo
+            </span>
           </button>
 
           <div className="mb-5 px-2">
@@ -489,7 +664,13 @@ export default function Home() {
               ))}
               {monthDays.map((date) => {
                 const today = isoDate(date) === isoDate(new Date());
-                const selected = isoDate(date) === isoDate(selectedDate);
+                const sameDisplayedMonth =
+                  date.getMonth() === currentDate.getMonth() &&
+                  date.getFullYear() === currentDate.getFullYear();
+                const selected =
+                  sameDisplayedMonth && isoDate(date) === isoDate(selectedDate);
+                const todayInDisplayedMonth =
+                  sameDisplayedMonth && isoDate(date) === isoDate(new Date());
                 return (
                   <button
                     key={isoDate(date)}
@@ -499,7 +680,7 @@ export default function Home() {
                       setView("day");
                       setSidebarOpen(false);
                     }}
-                    className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-[11px] ${selected ? "bg-[#d3e3fd] font-bold text-[#174ea6]" : today ? "bg-[#1a73e8] font-medium text-white" : date.getMonth() !== currentDate.getMonth() ? "text-[#bdc1c6]" : "hover:bg-[#e8eaed]"}`}
+                    className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-[11px] ${selected ? "bg-[#d3e3fd] font-bold text-[#174ea6]" : todayInDisplayedMonth ? "bg-[#1a73e8] font-medium text-white" : !sameDisplayedMonth ? "text-[#bdc1c6]" : "hover:bg-[#e8eaed]"}`}
                   >
                     {date.getDate()}
                   </button>
@@ -511,19 +692,28 @@ export default function Home() {
             <p className="mb-3 px-2 text-xs font-medium text-[#5f6368]">
               Lịch của bạn
             </p>
-            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#e8eaed]">
-              <span className="h-3 w-3 rounded-[3px] bg-[#1a73e8]" />
+            <button
+              title="Công việc cá nhân"
+              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#e8eaed]"
+            >
+              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#1a73e8]" />
               Công việc cá nhân
             </button>
-            <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#e8eaed]">
-              <span className="h-3 w-3 rounded-[3px] bg-[#188038]" />
-              Lịch toàn đội
+            <button
+              title="Lịch nhóm"
+              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#e8eaed]"
+            >
+              <span className="h-3 w-3 shrink-0 rounded-[3px] bg-[#188038]" />
+              Lịch nhóm
             </button>
           </div>
           <div className="mt-auto border-t border-[#dadce0] pt-4">
             <div className="flex items-center gap-3 px-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]">
-                D
+              <span
+                title={currentUser?.fullName ?? "Tài khoản"}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]"
+              >
+                {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
@@ -536,15 +726,16 @@ export default function Home() {
                 </p>
               </div>
               <button
-                onClick={handleLogout}
+                onClick={() => setShowLogoutConfirm(true)}
                 disabled={loggingOut}
                 title="Đăng xuất"
+                aria-label="Đăng xuất"
                 className="rounded-full p-2 text-[#5f6368] hover:bg-[#e8eaed] disabled:opacity-50"
               >
                 <Icon name="logout" size={18} />
               </button>
             </div>
-            {logoutError && (
+            {logoutError && !showLogoutConfirm && (
               <p role="alert" className="mt-2 px-2 text-xs text-red-600">
                 {logoutError}
               </p>
@@ -552,8 +743,8 @@ export default function Home() {
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 flex min-h-[68px] items-center gap-3 border-b border-[#dadce0] bg-white px-3 sm:px-5">
+        <section className="min-w-0 flex-1 bg-[#F8FAFD]">
+          <header className="sticky top-0 z-30 flex min-h-[68px] items-center gap-3 bg-[#F8FAFD] px-3 sm:px-5">
             <button
               aria-label="Mở menu"
               onClick={() => setSidebarOpen(true)}
@@ -561,13 +752,30 @@ export default function Home() {
             >
               <Icon name="menu" />
             </button>
-            <div className="ml-0 flex items-center gap-2 sm:ml-4">
+
+            <button
+              aria-label={
+                sidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"
+              }
+              title={
+                sidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"
+              }
+              onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+              className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[#e2e8f0] bg-white/70 text-[#475569] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#bfdbfe] hover:bg-white hover:text-[#1a73e8] hover:shadow-md md:inline-flex"
+            >
+              <Icon
+                name={sidebarCollapsed ? "panelLeftOpen" : "panelLeftClose"}
+                size={20}
+              />
+            </button>
+            <div className="ml-0 flex items-center gap-2 sm:ml-1">
               <button
                 onClick={goToday}
                 className="h-9 rounded-md border border-[#dadce0] px-4 text-sm font-medium hover:bg-[#f8fafd]"
               >
                 Hôm nay
               </button>
+
               <div className="flex items-center">
                 <button
                   aria-label="Kỳ trước"
@@ -585,6 +793,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
+
             <h1 className="min-w-0 flex-1 truncate pl-1 text-lg font-normal capitalize text-[#3c4043] sm:pl-3 sm:text-[22px]">
               {view === "day"
                 ? longDate(selectedDate)
@@ -592,6 +801,7 @@ export default function Home() {
                   ? `${longDate(weekStart).split(",")[0]}, ${pad(weekStart.getDate())} – ${pad(visibleDays[6]?.getDate() ?? weekStart.getDate())} ${monthLabel(currentDate)}`
                   : monthLabel(currentDate)}
             </h1>
+
             <div className="hidden items-center rounded-lg border border-[#dadce0] p-0.5 sm:flex">
               {(["day", "week", "month"] as View[]).map((item) => (
                 <button
@@ -603,18 +813,21 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
             <button
               title="Tìm kiếm"
               className="rounded-full p-2 text-[#5f6368] hover:bg-[#f1f3f4]"
             >
               <Icon name="search" />
             </button>
+
             <button
               title="Cài đặt"
               className="hidden rounded-full p-2 text-[#5f6368] hover:bg-[#f1f3f4] sm:block"
             >
               <Icon name="settings" />
             </button>
+
             <span
               title={currentUser?.fullName ?? "Tài khoản"}
               className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]"
@@ -659,20 +872,7 @@ export default function Home() {
                 <Icon name="plus" size={16} /> Tạo
               </button>
             </div>
-            <div className="mb-3 hidden max-w-sm items-center gap-3 rounded-lg border border-[#dadce0] px-3 sm:flex">
-              <Icon name="search" size={18} />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm công việc hoặc nhân viên..."
-                className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#80868b]"
-              />
-              {search && (
-                <button onClick={() => setSearch("")} aria-label="Xóa tìm kiếm">
-                  <Icon name="close" size={16} />
-                </button>
-              )}
-            </div>
+
             {taskError && (
               <div
                 role="alert"
@@ -681,12 +881,7 @@ export default function Home() {
                 {taskError}
               </div>
             )}
-            {loadingTasks && (
-              <div className="mb-3 flex items-center gap-2 px-2 py-2 text-sm text-[#5f6368]">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#1a73e8] border-t-transparent" />
-                Đang tải công việc từ database...
-              </div>
-            )}
+
             {view === "month" && (
               <div className="overflow-hidden rounded-lg border border-[#dadce0]">
                 <div className="grid grid-cols-7 border-b border-[#dadce0]">
@@ -707,18 +902,30 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+
                 <div className="grid grid-cols-7">
                   {visibleDays.map((date) => {
                     const dayTasks = tasksForDate(date);
+
                     const outside = date.getMonth() !== currentDate.getMonth();
+
                     const today = isoDate(date) === isoDate(new Date());
+
                     const selected = isoDate(date) === isoDate(selectedDate);
+
                     return (
                       <button
                         key={isoDate(date)}
                         onClick={() => {
                           setSelectedDate(new Date(date));
                         }}
+                        onDoubleClick={() => {
+                          setSelectedDate(new Date(date));
+                          setCurrentDate(new Date(date));
+                          setNewDate(isoDate(date));
+                          setShowCreate(true);
+                        }}
+                        title="Nhấn đúp để tạo công việc"
                         className={`group flex min-h-[92px] min-w-0 flex-col border-b border-r border-[#dadce0] p-1 text-left transition last:border-r-0 hover:bg-[#f8fafd] sm:min-h-[118px] sm:p-2 lg:min-h-[132px] ${selected ? "bg-[#f8fafd]" : "bg-white"}`}
                       >
                         <span
@@ -726,6 +933,7 @@ export default function Home() {
                         >
                           {date.getDate()}
                         </span>
+
                         <div className="flex w-full flex-col gap-1">
                           {dayTasks.slice(0, 3).map((task) => (
                             <span
@@ -736,6 +944,7 @@ export default function Home() {
                               {task.title}
                             </span>
                           ))}
+
                           {dayTasks.length > 3 && (
                             <span className="px-1 text-[10px] font-medium text-[#5f6368]">
                               +{dayTasks.length - 3} nữa
@@ -748,6 +957,7 @@ export default function Home() {
                 </div>
               </div>
             )}
+
             {view === "week" && (
               <div className="overflow-x-auto rounded-lg border border-[#dadce0]">
                 <div className="grid min-w-[700px] grid-cols-7">
@@ -793,6 +1003,7 @@ export default function Home() {
                 </div>
               </div>
             )}
+
             {view === "day" && (
               <div className="overflow-hidden rounded-lg border border-[#dadce0]">
                 <div className="flex items-center gap-4 border-b border-[#dadce0] px-5 py-4">
@@ -817,6 +1028,7 @@ export default function Home() {
                     Tạo công việc
                   </button>
                 </div>
+
                 {tasksForDate(selectedDate).length === 0 ? (
                   <div className="px-4 py-16 text-center">
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f1f3f4] text-[#5f6368]">
@@ -859,27 +1071,132 @@ export default function Home() {
                 )}
               </div>
             )}
+
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 text-xs text-[#5f6368]">
               <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#188038]" />
-                Đang thực hiện
-              </span>
-              <span className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-sm bg-[#e37400]" />
-                Chưa bắt đầu
+                Chưa hoàn thành
               </span>
               <span className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#d93025]" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-[#188038]" />
                 Hoàn thành
               </span>
               <span className="ml-auto text-[11px] text-[#80868b]">
-                {totalTasks} công việc · {inProgressTasks} đang làm ·{" "}
+                {totalTasks} công việc · {unfinishedTasks} chưa hoàn thành ·{" "}
                 {completedTasks} hoàn thành
               </span>
             </div>
           </div>
         </section>
       </div>
+
+      {showLogoutConfirm && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-[#202124]/50 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !loggingOut) {
+              setShowLogoutConfirm(false);
+              setLogoutError("");
+            }
+          }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+            aria-describedby="logout-confirm-description"
+            className="w-full max-w-[420px] animate-[logoutIn_160ms_ease-out] overflow-hidden rounded-[28px] bg-white shadow-[0_24px_80px_rgba(32,33,36,0.28)] ring-1 ring-black/5 motion-reduce:animate-none"
+          >
+            <div className="px-6 pb-5 pt-7 sm:px-8">
+              {/* Icon */}
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#fce8e6] text-[#d93025]">
+                <Icon name="logout" size={26} />
+              </div>
+
+              {/* Nội dung */}
+              <div className="text-center">
+                <h2
+                  id="logout-confirm-title"
+                  className="text-[22px] font-normal tracking-tight text-[#202124]"
+                >
+                  Đăng xuất khỏi tài khoản?
+                </h2>
+                <p
+                  id="logout-confirm-description"
+                  className="mt-2 text-sm leading-6 text-[#5f6368]"
+                >
+                  Bạn sẽ cần đăng nhập lại để tiếp tục xem và quản lý công việc.
+                </p>
+              </div>
+
+              {/* Thông tin tài khoản hiện tại */}
+              <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#e8eaed] bg-[#f8fafd] px-4 py-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d3e3fd] text-sm font-semibold text-[#174ea6]">
+                  {currentUser?.fullName?.trim().charAt(0).toUpperCase() ?? "D"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#202124]">
+                    {currentUser?.fullName ?? "Tài khoản"}
+                  </p>
+                  <p className="truncate text-xs text-[#70757a]">
+                    {currentUser
+                      ? `${currentUser.employeeId} · ${currentUser.jobTitle}`
+                      : "Daily Task Manager"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Thông báo lỗi */}
+              {logoutError && (
+                <div
+                  role="alert"
+                  className="mt-4 flex items-start gap-2 rounded-xl border border-[#f4c7c3] bg-[#fce8e6] px-3.5 py-2.5 text-sm text-[#b3261e]"
+                >
+                  <span className="mt-0.5 shrink-0">
+                    <Icon name="close" size={16} />
+                  </span>
+                  <span>{logoutError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col-reverse gap-2 px-6 pb-6 sm:flex-row sm:justify-end sm:px-8 sm:pb-7">
+              <button
+                type="button"
+                autoFocus
+                disabled={loggingOut}
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  setLogoutError("");
+                }}
+                className="inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-medium text-[#1a73e8] transition-colors hover:bg-[#f1f3f4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a73e8]/40 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Hủy
+              </button>
+
+              <button
+                type="button"
+                disabled={loggingOut}
+                onClick={handleLogout}
+                className="inline-flex h-11 min-w-[128px] items-center justify-center gap-2 rounded-full bg-[#d93025] px-6 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#c5221f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d93025]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {loggingOut ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    Đang đăng xuất...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="logout" size={18} />
+                    Đăng xuất
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {showCreate && (
         <div
@@ -915,6 +1232,7 @@ export default function Home() {
                 <Icon name="close" />
               </button>
             </div>
+
             <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
                 <label
@@ -933,6 +1251,7 @@ export default function Home() {
                   className="w-full rounded-lg border border-[#dadce0] px-3.5 py-3 text-sm outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
                 />
               </div>
+
               <div>
                 <label
                   htmlFor="task-description"
@@ -950,6 +1269,7 @@ export default function Home() {
                   className="w-full resize-y rounded-lg border border-[#dadce0] px-3.5 py-3 text-sm outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
                 />
               </div>
+
               <div>
                 <label
                   htmlFor="task-date"
@@ -966,6 +1286,7 @@ export default function Home() {
                   className="w-full min-w-0 rounded-lg border border-[#dadce0] bg-white px-3 py-3 text-sm outline-none focus:border-[#1a73e8]"
                 />
               </div>
+
               <div>
                 <label
                   htmlFor="task-status"
@@ -979,11 +1300,11 @@ export default function Home() {
                   onChange={(e) => setNewStatus(e.target.value as TaskStatus)}
                   className="w-full rounded-lg border border-[#dadce0] bg-white px-3 py-3 text-sm outline-none focus:border-[#1a73e8]"
                 >
-                  <option value="Chưa bắt đầu">Chưa bắt đầu</option>
-                  <option value="Đang thực hiện">Đang thực hiện</option>
+                  <option value="Chưa hoàn thành">Chưa hoàn thành</option>
                   <option value="Hoàn thành">Hoàn thành</option>
                 </select>
               </div>
+
               <div className="flex flex-col-reverse gap-2 pt-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
